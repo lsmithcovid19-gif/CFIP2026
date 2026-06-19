@@ -563,7 +563,7 @@ export default function DashboardPage() {
                     </td>
                     <td className="px-4 py-3 font-mono text-gray-800 font-semibold">{j.dni}</td>
                     <td className="px-4 py-3 font-bold text-gray-800">{j.nombres} {j.apellidos}</td>
-                    <td className="px-4 py-3 text-center text-gray-600">{j.fecha_nacimiento ? new Date(j.fecha_nacimiento).toLocaleDateString('es-PE') : '-'}</td>
+                    <td className="px-4 py-3 text-center text-gray-600">{j.fecha_nacimiento ? j.fecha_nacimiento.split('-').reverse().join('/') : '-'}</td>
                     <td className="px-4 py-3 text-center text-gray-600">{calcularEdad(j.fecha_nacimiento)}</td>
                     <td className="px-4 py-3 text-center text-gray-600">{j.nro_colegiatura}</td>
                     <td className="px-4 py-3 text-center">
