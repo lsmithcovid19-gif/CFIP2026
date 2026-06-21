@@ -367,7 +367,7 @@ const ocultarDNI = (dni: string) => {
               { numero: '📍', titulo: 'LUGAR', desc: 'Cancha Deportiva FULL SPORT (Zarumilla) - Juliaca, Puno' },
               { numero: '📅', titulo: 'INICIO', desc: '20 de Junio · 2026' },
               { numero: '2', titulo: 'CATEGORÍAS', desc: 'Libre y Máster' },
-              { numero: '50', titulo: 'Clubes', desc: 'Equipos Participantes' },
+              { numero: '49', titulo: 'Clubes', desc: 'Equipos Participantes' },
               { numero: '30', titulo: 'JUGADORES', desc: 'Por Equipo' },
               { numero: 'ORGANIZA', titulo: 'Equipo Campeón · 2025', desc: 'Ingenieros "C" · Categoría Libre' },
             ].map(item => (
