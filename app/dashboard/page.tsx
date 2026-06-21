@@ -150,6 +150,10 @@ export default function DashboardPage() {
   }
 
   const handleGuardar = async () => {
+    if (!editando && jugadores.length >= MAX_JUGADORES) {
+      alert(`Has alcanzado el máximo de ${MAX_JUGADORES} jugadores para tu equipo.`)
+      return
+    }
     if (!validar()) return
     setGuardando(true)
     let foto_url = editando?.foto_url || ''
@@ -237,7 +241,7 @@ export default function DashboardPage() {
     j.dni?.includes(busqueda)
   )
 
-  const MAX_JUGADORES = 30
+  const MAX_JUGADORES = 25
   const porcentaje = Math.round((jugadores.length / MAX_JUGADORES) * 100)
   const completos = jugadores.filter(j => documentosCompletos(j)).length
 
