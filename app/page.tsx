@@ -368,7 +368,7 @@ const ocultarDNI = (dni: string) => {
               { numero: '📅', titulo: 'INICIO', desc: '20 de Junio · 2026' },
               { numero: '2', titulo: 'CATEGORÍAS', desc: 'Libre y Máster' },
               { numero: '49', titulo: 'Clubes', desc: 'Equipos Participantes' },
-              { numero: '30', titulo: 'JUGADORES', desc: 'Por Equipo' },
+              { numero: '25', titulo: 'JUGADORES', desc: 'Por Equipo' },
               { numero: 'ORGANIZA', titulo: 'Equipo Campeón · 2025', desc: 'Ingenieros "C" · Categoría Libre' },
             ].map(item => (
               <div key={item.titulo}
