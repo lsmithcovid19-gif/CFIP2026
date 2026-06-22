@@ -94,7 +94,7 @@ export default function AdminPage() {
   }
 
   const generarCredenciales = (nombre: string, categoria: string) => {
-    const base = nombre.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '').substring(0, 15)
+    const base = nombre.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/+/g, '_').substring(0, 15)
     const cat = categoria === 'LIBRE' ? 'lib' : 'mas'
     return {
       usuario: `${base}_${cat}`,
