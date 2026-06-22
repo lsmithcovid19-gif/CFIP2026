@@ -94,11 +94,13 @@ export default function AdminPage() {
   }
 
   const generarCredenciales = (nombre: string, categoria: string) => {
-    const base = nombre.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').substring(0, 15)
+    let base = nombre.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')
+    base = base.substring(0, 15).replace(/_$/, '')
+    let baseCorta = base.substring(0, 8).replace(/_$/, '')
     const cat = categoria === 'LIBRE' ? 'lib' : 'mas'
     return {
       usuario: `${base}_${cat}`,
-      password: `CIP2026_${nombre.replace(/[^a-zA-Z0-9]/g, '').substring(0, 6)}_${cat}`
+      password: `${cat}2026${baseCorta}`
     }
   }
 
