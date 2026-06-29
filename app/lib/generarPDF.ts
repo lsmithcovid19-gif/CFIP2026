@@ -18,12 +18,9 @@ export interface DatosJugador {
 
 const calcularEdad = (fecha: string) => {
   if (!fecha) return ''
-  const hoy = new Date()
-  const nac = new Date(fecha)
-  let edad = hoy.getFullYear() - nac.getFullYear()
-  const m = hoy.getMonth() - nac.getMonth()
-  if (m < 0 || (m === 0 && hoy.getDate() < nac.getDate())) edad--
-  return `${edad} años`
+  const añoNac = parseInt(fecha.split('-')[0])
+  const añoActual = new Date().getFullYear()
+  return `${añoActual - añoNac} años`
 }
 
 const urlToBase64 = async (url: string): Promise<string> => {
