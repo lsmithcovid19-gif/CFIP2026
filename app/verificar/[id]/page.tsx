@@ -122,7 +122,7 @@ export default function VerificarPage() {
               { label: 'Equipo', valor: equipo?.nombre },
               { label: 'Categoría', valor: equipo?.categoria },
               { label: 'Nro Colegiatura', valor: jugador?.nro_colegiatura },
-              { label: 'Fecha Nacimiento', valor: jugador?.fecha_nacimiento ? new Date(jugador.fecha_nacimiento).toLocaleDateString('es-PE') : '-' },
+              { label: 'Fecha Nacimiento', valor: jugador?.fecha_nacimiento ? jugador.fecha_nacimiento.split('-').reverse().join('/') : '-' },
               { label: 'Edad', valor: calcularEdad(jugador?.fecha_nacimiento || '') },
             ].map(item => (
               <div key={item.label} className="flex justify-between border-b pb-2">

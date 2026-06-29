@@ -174,7 +174,7 @@ export const generarFicha = async (jugador: DatosJugador) => {
     <div style="position:absolute;left:${px(278)}px;top:${px(291)}px;color:#1a1a1a;font-weight:700;font-size:${px(18)}px;line-height:1;white-space:nowrap;">${jugador.dni}</div>
     <div style="position:absolute;left:${px(278)}px;top:${px(334)}px;color:#1a1a1a;font-weight:700;font-size:${px(18)}px;line-height:1;white-space:nowrap;">${jugador.nombres}</div>
     <div style="position:absolute;left:${px(278)}px;top:${px(377)}px;color:#1a1a1a;font-weight:700;font-size:${px(18)}px;line-height:1;white-space:nowrap;">${jugador.apellidos}</div>
-    <div style="position:absolute;left:${px(278)}px;top:${px(421)}px;color:#1a1a1a;font-weight:700;font-size:${px(17)}px;line-height:1;white-space:nowrap;">${jugador.fecha_nacimiento ? new Date(jugador.fecha_nacimiento).toLocaleDateString('es-PE') : ''}</div>
+    <div style="position:absolute;left:${px(278)}px;top:${px(421)}px;color:#1a1a1a;font-weight:700;font-size:${px(17)}px;line-height:1;white-space:nowrap;">${jugador.fecha_nacimiento ? jugador.fecha_nacimiento.split('-').reverse().join('/') : ''}</div>
     <div style="position:absolute;left:${px(670)}px;top:${px(421)}px;color:#1a1a1a;font-weight:700;font-size:${px(17)}px;line-height:1;white-space:nowrap;">${calcularEdad(jugador.fecha_nacimiento)}</div>
     <div style="position:absolute;left:${px(278)}px;top:${px(464)}px;color:#1a1a1a;font-weight:700;font-size:${px(17)}px;line-height:1;white-space:nowrap;">${jugador.direccion}</div>
     <div style="position:absolute;left:${px(278)}px;top:${px(507)}px;color:#1a1a1a;font-weight:700;font-size:${px(17)}px;line-height:1;white-space:nowrap;">${jugador.correo}</div>

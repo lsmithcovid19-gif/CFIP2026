@@ -456,7 +456,7 @@ export default function DashboardPage() {
                 <div className="flex-1 space-y-2 text-sm">
                   {[
                     { label: 'DNI', valor: jugadorDetalle.dni },
-                    { label: 'Fecha Nac.', valor: jugadorDetalle.fecha_nacimiento ? new Date(jugadorDetalle.fecha_nacimiento).toLocaleDateString('es-PE') : '-' },
+                    { label: 'Fecha Nac.', valor: jugadorDetalle.fecha_nacimiento ? jugadorDetalle.fecha_nacimiento.split('-').reverse().join('/') : '-' },
                     { label: 'Edad', valor: calcularEdad(jugadorDetalle.fecha_nacimiento) },
                     { label: 'Colegiatura', valor: jugadorDetalle.nro_colegiatura },
                     { label: 'Teléfono', valor: jugadorDetalle.telefono },
