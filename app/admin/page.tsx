@@ -95,7 +95,6 @@ export default function AdminPage() {
 
   const generarCredenciales = (nombre: string, categoria: string) => {
     let base = nombre.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')
-    base = base.substring(0, 15).replace(/_$/, '')
     let baseCorta = base.substring(0, 8).replace(/_$/, '')
     const cat = categoria === 'LIBRE' ? 'lib' : 'mas'
     return {
@@ -108,9 +107,11 @@ export default function AdminPage() {
     if (!form.nombre || !form.colegio) return
     const { usuario, password } = generarCredenciales(form.nombre, form.categoria)
     if (editando) {
-      await supabase.from('equipos').update({ ...form, usuario, password }).eq('id', editando.id)
+      const { error } = await supabase.from('equipos').update({ ...form, usuario, password }).eq('id', editando.id)
+      if (error) { alert('Error al actualizar: ' + error.message); return }
     } else {
-      await supabase.from('equipos').insert({ ...form, usuario, password })
+      const { error } = await supabase.from('equipos').insert({ ...form, usuario, password })
+      if (error) { alert('Error al crear equipo: ' + error.message); return }
     }
     setForm({ nombre: '', colegio: '', categoria: 'LIBRE' })
     setShowForm(false); setEditando(null)
