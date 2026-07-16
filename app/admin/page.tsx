@@ -631,7 +631,6 @@ export default function AdminPage() {
           </div>
         )}
 
-      </div>
       {/* ===== GOLEADORES ===== */}
 {seccionActiva === 'goleadores' && (
   <div>
@@ -752,6 +751,7 @@ export default function AdminPage() {
     </div>
   </div>
 )}
+    </div>
       <div className="pb-10"></div>
     </main>
   )
