@@ -32,6 +32,8 @@ interface PuntajeEquipo {
   gf: number
   gc: number
   puntos: number
+  wo: number
+  pts_descontados: number
 }
 
 export default function AdminPage() {
@@ -54,6 +56,11 @@ export default function AdminPage() {
   const [basesUrl, setBasesUrl] = useState('')
   const [basesId, setBasesId] = useState('')
   const [editandoPuntaje, setEditandoPuntaje] = useState<PuntajeEquipo | null>(null)
+  const [descuentos, setDescuentos] = useState<any[]>([])
+  const [showDescuentos, setShowDescuentos] = useState<string | null>(null)
+  const [showFormDescuento, setShowFormDescuento] = useState(false)
+  const [equipoDescuento, setEquipoDescuento] = useState<any>(null)
+  const [formDescuento, setFormDescuento] = useState({ motivo: '', fecha_partido: '', puntos_descontados: 0 })
   const [goleadores, setGoleadores] = useState<any[]>([])
   const [categoriaGoleadores, setCategoriaGoleadores] = useState('LIBRE')
   const [showFormGoleador, setShowFormGoleador] = useState(false)
@@ -86,12 +93,14 @@ export default function AdminPage() {
   const cargarTabla = async () => {
     const { data } = await supabase.from('tabla_puntajes').select('*, equipos(nombre)').order('puntos', { ascending: false })
     if (data) {
-        const conNombres = data.map((p: any) => ({
+      const conNombres = data.map((p: any) => ({
         ...p,
         equipo_nombre: p.equipos?.nombre || 'Equipo eliminado'
-        }))
-        setTabla(conNombres)
+      }))
+      setTabla(conNombres)
     }
+    const { data: desc } = await supabase.from('descuentos').select('*').order('created_at', { ascending: false })
+    setDescuentos(desc || [])
   }
 
   const cargarGoleadores = async () => {
@@ -205,36 +214,128 @@ export default function AdminPage() {
   }
 
   const handleGuardarPuntaje = async () => {
-  if (!editandoPuntaje) return
-  const puntos = editandoPuntaje.pg * 3 + editandoPuntaje.pe * 2 + editandoPuntaje.pp * 1
+    if (!editandoPuntaje) return
 
-  const datos = {
-    equipo_id: editandoPuntaje.equipo_id,
-    categoria: editandoPuntaje.categoria,
-    pj: editandoPuntaje.pj,
-    pg: editandoPuntaje.pg,
-    pe: editandoPuntaje.pe,
-    pp: editandoPuntaje.pp,
-    gf: editandoPuntaje.gf,
-    gc: editandoPuntaje.gc,
-    puntos,
+    const puntos =
+      editandoPuntaje.pg * 3 +
+      editandoPuntaje.pe * 2 +
+      editandoPuntaje.pp * 1
+
+    const datos = {
+      equipo_id: editandoPuntaje.equipo_id,
+      categoria: editandoPuntaje.categoria,
+      pj: editandoPuntaje.pj,
+      pg: editandoPuntaje.pg,
+      pe: editandoPuntaje.pe,
+      pp: editandoPuntaje.pp,
+      gf: editandoPuntaje.gf,
+      gc: editandoPuntaje.gc,
+      wo: editandoPuntaje.wo || 0,
+      puntos,
+    }
+
+    if (editandoPuntaje.id) {
+      const { error } = await supabase
+        .from('tabla_puntajes')
+        .update(datos)
+        .eq('id', editandoPuntaje.id)
+
+      if (error) {
+        alert('Error: ' + error.message)
+        return
+      }
+    } else {
+      const { error } = await supabase
+        .from('tabla_puntajes')
+        .insert(datos)
+
+      if (error) {
+        alert('Error: ' + error.message)
+        return
+      }
+    }
+
+    setEditandoPuntaje(null)
+    await cargarTabla()
   }
 
-  if (editandoPuntaje.id) {
-    const { error } = await supabase.from('tabla_puntajes').update(datos).eq('id', editandoPuntaje.id)
-    if (error) { alert('Error: ' + error.message); return }
-  } else {
-    const { error } = await supabase.from('tabla_puntajes').insert(datos)
-    if (error) { alert('Error: ' + error.message); return }
+  const handleAgregarDescuento = async () => {
+    if (
+      !equipoDescuento ||
+      !formDescuento.motivo ||
+      formDescuento.puntos_descontados <= 0
+    ) {
+      alert('Completa todos los campos')
+      return
+    }
+
+    await supabase.from('descuentos').insert({
+      equipo_id: equipoDescuento.equipo_id,
+      categoria: equipoDescuento.categoria,
+      motivo: formDescuento.motivo,
+      fecha_partido: formDescuento.fecha_partido,
+      puntos_descontados: formDescuento.puntos_descontados,
+    })
+
+    // Actualizar pts_descontados en tabla_puntajes
+    const totalDesc =
+      descuentos
+        .filter(d => d.equipo_id === equipoDescuento.equipo_id)
+        .reduce((sum, d) => sum + d.puntos_descontados, 0) +
+      formDescuento.puntos_descontados
+
+    await supabase
+      .from('tabla_puntajes')
+      .update({ pts_descontados: totalDesc })
+      .eq('id', equipoDescuento.id)
+
+    setFormDescuento({
+      motivo: '',
+      fecha_partido: '',
+      puntos_descontados: 0,
+    })
+
+    setShowFormDescuento(false)
+    await cargarTabla()
   }
-  setEditandoPuntaje(null)
-  await cargarTabla()
-}
+
+  const handleEliminarDescuento = async (descuento: any) => {
+    if (!confirm('¿Eliminar este descuento?')) return
+
+    await supabase
+      .from('descuentos')
+      .delete()
+      .eq('id', descuento.id)
+
+    // Recalcular pts_descontados
+    const restantes = descuentos.filter(
+      d =>
+        d.id !== descuento.id &&
+        d.equipo_id === descuento.equipo_id
+    )
+
+    const totalDesc = restantes.reduce(
+      (sum, d) => sum + d.puntos_descontados,
+      0
+    )
+
+    await supabase
+      .from('tabla_puntajes')
+      .update({ pts_descontados: totalDesc })
+      .eq('equipo_id', descuento.equipo_id)
+
+    await cargarTabla()
+  }
 
   const handleEliminarPuntaje = async (id: string) => {
-  if (!confirm('¿Eliminar este equipo de la tabla?')) return
-  await supabase.from('tabla_puntajes').delete().eq('id', id)
-  cargarTabla()
+    if (!confirm('¿Eliminar este equipo de la tabla?')) return
+
+    await supabase
+      .from('tabla_puntajes')
+      .delete()
+      .eq('id', id)
+
+    cargarTabla()
   }
 
   const handleAgregarEquipoTabla = async (equipo: Equipo) => {
@@ -518,6 +619,7 @@ export default function AdminPage() {
                     { label: 'PP', key: 'pp' },
                     { label: 'GF', key: 'gf' },
                     { label: 'GC', key: 'gc' },
+                    { label: 'WO', key: 'wo' },
                   ].map(({ label, key }) => (
                     <div key={key}>
                       <label className="text-xs font-bold text-gray-500 mb-1 block">{label}</label>
@@ -545,8 +647,8 @@ export default function AdminPage() {
               <table className="w-full text-sm">
                 <thead className="bg-[#7b0a0a] text-white">
                   <tr>
-                    {['#', 'Equipo', 'PJ', 'PG', 'PE', 'PP', 'GF', 'GC', 'DG', 'Pts', ''].map(h => (
-                      <th key={h} className="px-3 py-3 text-center font-black">{h}</th>
+                    {['#', 'Equipo', 'PJ', 'PG', 'PE', 'PP', 'WO', 'GF', 'GC', 'DG', 'Pts', 'PD', 'Total', ''].map(h => (
+                      <th key={h} className={`px-3 py-3 text-center font-black ${h === 'PD' ? 'text-orange-300' : h === 'Total' ? 'text-yellow-300' : ''}`}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -562,21 +664,32 @@ export default function AdminPage() {
                         <td className="px-3 py-3 text-center text-green-600 font-semibold">{t.pg}</td>
                         <td className="px-3 py-3 text-center text-yellow-600 font-semibold">{t.pe}</td>
                         <td className="px-3 py-3 text-center text-red-600 font-semibold">{t.pp}</td>
+                        <td className="px-3 py-3 text-center text-purple-600 font-semibold">{t.wo || 0}</td>
                         <td className="px-3 py-3 text-center text-gray-800 font-semibold">{t.gf}</td>
                         <td className="px-3 py-3 text-center text-gray-800 font-semibold">{t.gc}</td>
                         <td className="px-3 py-3 text-center text-gray-800 font-semibold">{t.gf - t.gc}</td>
                         <td className="px-3 py-3 text-center font-black text-[#7b0a0a] text-base">{t.puntos}</td>
                         <td className="px-3 py-3 text-center">
-                            <div className="flex gap-1 justify-center">
-                                <button onClick={() => setEditandoPuntaje(t)}
-                                className="bg-[#c9a227] text-black px-2 py-1 rounded text-xs font-bold hover:bg-yellow-400 transition">
-                                Editar
-                                </button>
-                                <button onClick={() => handleEliminarPuntaje(t.id!)}
-                                className="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold hover:bg-red-600 transition">
-                                Eliminar
-                                </button>
-                            </div>
+                          <button
+                            onClick={() => { setEquipoDescuento(t); setShowDescuentos(t.equipo_id) }}
+                            className="bg-orange-500 hover:bg-orange-600 text-white px-2 py-1 rounded text-xs font-bold transition">
+                            {t.pts_descontados > 0 ? `-${t.pts_descontados}` : '0'}
+                          </button>
+                        </td>
+                        <td className="px-3 py-3 text-center font-black text-yellow-600 text-base">
+                          {(t.puntos || 0) - (t.pts_descontados || 0)}
+                        </td>
+                        <td className="px-3 py-3 text-center">
+                          <div className="flex gap-1 justify-center">
+                            <button onClick={() => setEditandoPuntaje(t)}
+                              className="bg-[#c9a227] text-black px-2 py-1 rounded text-xs font-bold hover:bg-yellow-400 transition">
+                              ✏️
+                            </button>
+                            <button onClick={() => handleEliminarPuntaje(t.id!)}
+                              className="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold hover:bg-red-600 transition">
+                              🗑️
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -632,125 +745,212 @@ export default function AdminPage() {
         )}
 
       {/* ===== GOLEADORES ===== */}
-{seccionActiva === 'goleadores' && (
-  <div>
-    <div className="flex gap-3 mb-6">
-      {['LIBRE', 'MASTER'].map(cat => (
-        <button key={cat} onClick={() => setCategoriaGoleadores(cat)}
-          className={`px-5 py-2 rounded-xl font-bold text-sm transition ${categoriaGoleadores === cat ? 'bg-[#7b0a0a] text-white' : 'bg-white text-gray-700'}`}>
-          {cat === 'MASTER' ? 'MÁSTER' : cat}
-        </button>
-      ))}
-      <button onClick={() => { setShowFormGoleador(true); setEditandoGoleador(null); setFormGoleador({ jugador_id: '', equipo_id: '', goles: 0, categoria: categoriaGoleadores }) }}
-        className="ml-auto bg-[#7b0a0a] text-white font-bold px-5 py-2 rounded-xl hover:bg-[#5a0808] transition">
-        + Agregar Goleador
-      </button>
-    </div>
+      {seccionActiva === 'goleadores' && (
+        <div>
+          <div className="flex gap-3 mb-6">
+            {['LIBRE', 'MASTER'].map(cat => (
+              <button key={cat} onClick={() => setCategoriaGoleadores(cat)}
+                className={`px-5 py-2 rounded-xl font-bold text-sm transition ${categoriaGoleadores === cat ? 'bg-[#7b0a0a] text-white' : 'bg-white text-gray-700'}`}>
+                {cat === 'MASTER' ? 'MÁSTER' : cat}
+              </button>
+            ))}
+            <button onClick={() => { setShowFormGoleador(true); setEditandoGoleador(null); setFormGoleador({ jugador_id: '', equipo_id: '', goles: 0, categoria: categoriaGoleadores }) }}
+              className="ml-auto bg-[#7b0a0a] text-white font-bold px-5 py-2 rounded-xl hover:bg-[#5a0808] transition">
+              + Agregar Goleador
+            </button>
+          </div>
 
-    {showFormGoleador && (
-      <div className="bg-white rounded-xl shadow p-6 mb-6 border-l-4 border-[#c9a227]">
-        <h2 className="font-black text-gray-800 text-lg mb-4">{editandoGoleador ? '✏️ Editar Goleador' : '➕ Nuevo Goleador'}</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="text-sm font-semibold text-gray-600 mb-1 block">Categoría</label>
-            <select value={formGoleador.categoria}
-              onChange={e => setFormGoleador({ ...formGoleador, categoria: e.target.value, equipo_id: '', jugador_id: '' })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7b0a0a]">
-              <option value="LIBRE">Libre</option>
-              <option value="MASTER">Máster</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-gray-600 mb-1 block">Equipo</label>
-            <select value={formGoleador.equipo_id}
-              onChange={e => { setFormGoleador({ ...formGoleador, equipo_id: e.target.value, jugador_id: '' }); cargarJugadoresEquipo(e.target.value) }}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7b0a0a]">
-              <option value="">Selecciona equipo</option>
-              {equipos.filter(e => e.categoria === formGoleador.categoria).map(e => (
-                <option key={e.id} value={e.id}>{e.nombre}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-gray-600 mb-1 block">Jugador</label>
-            <select value={formGoleador.jugador_id}
-              onChange={e => setFormGoleador({ ...formGoleador, jugador_id: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7b0a0a]"
-              disabled={!formGoleador.equipo_id}>
-              <option value="">Selecciona jugador</option>
-              {jugadoresEquipoSeleccionado.map(j => (
-                <option key={j.id} value={j.id}>{j.nombres} {j.apellidos}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-gray-600 mb-1 block">Número de Goles</label>
-            <input type="number" min={0} value={formGoleador.goles}
-              onChange={e => setFormGoleador({ ...formGoleador, goles: parseInt(e.target.value) || 0 })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7b0a0a]" />
-          </div>
-        </div>
-        <div className="flex gap-3 mt-4">
-          <button onClick={handleGuardarGoleador}
-            className="bg-[#7b0a0a] text-white font-bold px-6 py-2 rounded-lg hover:bg-[#5a0808] transition">
-            {editandoGoleador ? 'Guardar Cambios' : 'Agregar Goleador'}
-          </button>
-          <button onClick={() => { setShowFormGoleador(false); setEditandoGoleador(null) }}
-            className="bg-gray-200 text-gray-700 font-bold px-6 py-2 rounded-lg hover:bg-gray-300 transition">
-            Cancelar
-          </button>
-        </div>
-      </div>
-    )}
-
-    <div className="bg-white rounded-xl shadow overflow-hidden">
-      <table className="w-full text-sm">
-        <thead className="bg-[#7b0a0a] text-white">
-          <tr>
-            <th className="px-4 py-3 text-center font-black">#</th>
-            <th className="px-4 py-3 text-left font-black">Jugador</th>
-            <th className="px-4 py-3 text-left font-black">Equipo</th>
-            <th className="px-4 py-3 text-center font-black">⚽ Goles</th>
-            <th className="px-4 py-3 text-center font-black">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {goleadores.filter(g => g.categoria === categoriaGoleadores).length === 0 ? (
-            <tr><td colSpan={5} className="text-center py-10 text-gray-400">No hay goleadores registrados aún</td></tr>
-          ) : (
-            goleadores
-              .filter(g => g.categoria === categoriaGoleadores)
-              .map((g, i) => (
-                <tr key={g.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                  <td className="px-4 py-3 text-center font-bold text-[#7b0a0a]">{i + 1}</td>
-                  <td className="px-4 py-3 font-bold text-gray-800">{g.jugadores?.nombres} {g.jugadores?.apellidos}</td>
-                  <td className="px-4 py-3 text-gray-600">{g.equipos?.nombre}</td>
-                  <td className="px-4 py-3 text-center font-black text-[#7b0a0a] text-lg">{g.goles}</td>
-                  <td className="px-4 py-3 text-center">
-                    <div className="flex gap-2 justify-center">
-                      <button onClick={() => {
-                        setEditandoGoleador(g)
-                        setFormGoleador({ jugador_id: g.jugador_id, equipo_id: g.equipo_id, goles: g.goles, categoria: g.categoria })
-                        cargarJugadoresEquipo(g.equipo_id)
-                        setShowFormGoleador(true)
-                      }}
-                        className="bg-[#c9a227] text-black px-3 py-1 rounded text-xs font-bold hover:bg-yellow-400 transition">
-                        Editar
-                      </button>
-                      <button onClick={() => handleEliminarGoleador(g.id)}
-                        className="bg-red-500 text-white px-3 py-1 rounded text-xs font-bold hover:bg-red-600 transition">
-                        Eliminar
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
+          {showFormGoleador && (
+            <div className="bg-white rounded-xl shadow p-6 mb-6 border-l-4 border-[#c9a227]">
+              <h2 className="font-black text-gray-800 text-lg mb-4">{editandoGoleador ? '✏️ Editar Goleador' : '➕ Nuevo Goleador'}</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-sm font-semibold text-gray-600 mb-1 block">Categoría</label>
+                  <select value={formGoleador.categoria}
+                    onChange={e => setFormGoleador({ ...formGoleador, categoria: e.target.value, equipo_id: '', jugador_id: '' })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7b0a0a]">
+                    <option value="LIBRE">Libre</option>
+                    <option value="MASTER">Máster</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-gray-600 mb-1 block">Equipo</label>
+                  <select value={formGoleador.equipo_id}
+                    onChange={e => { setFormGoleador({ ...formGoleador, equipo_id: e.target.value, jugador_id: '' }); cargarJugadoresEquipo(e.target.value) }}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7b0a0a]">
+                    <option value="">Selecciona equipo</option>
+                    {equipos.filter(e => e.categoria === formGoleador.categoria).map(e => (
+                      <option key={e.id} value={e.id}>{e.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-gray-600 mb-1 block">Jugador</label>
+                  <select value={formGoleador.jugador_id}
+                    onChange={e => setFormGoleador({ ...formGoleador, jugador_id: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7b0a0a]"
+                    disabled={!formGoleador.equipo_id}>
+                    <option value="">Selecciona jugador</option>
+                    {jugadoresEquipoSeleccionado.map(j => (
+                      <option key={j.id} value={j.id}>{j.nombres} {j.apellidos}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-gray-600 mb-1 block">Número de Goles</label>
+                  <input type="number" min={0} value={formGoleador.goles}
+                    onChange={e => setFormGoleador({ ...formGoleador, goles: parseInt(e.target.value) || 0 })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7b0a0a]" />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-4">
+                <button onClick={handleGuardarGoleador}
+                  className="bg-[#7b0a0a] text-white font-bold px-6 py-2 rounded-lg hover:bg-[#5a0808] transition">
+                  {editandoGoleador ? 'Guardar Cambios' : 'Agregar Goleador'}
+                </button>
+                <button onClick={() => { setShowFormGoleador(false); setEditandoGoleador(null) }}
+                  className="bg-gray-200 text-gray-700 font-bold px-6 py-2 rounded-lg hover:bg-gray-300 transition">
+                  Cancelar
+                </button>
+              </div>
+            </div>
           )}
-        </tbody>
-      </table>
+
+          <div className="bg-white rounded-xl shadow overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-[#7b0a0a] text-white">
+                <tr>
+                  <th className="px-4 py-3 text-center font-black">#</th>
+                  <th className="px-4 py-3 text-left font-black">Jugador</th>
+                  <th className="px-4 py-3 text-left font-black">Equipo</th>
+                  <th className="px-4 py-3 text-center font-black">⚽ Goles</th>
+                  <th className="px-4 py-3 text-center font-black">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {goleadores.filter(g => g.categoria === categoriaGoleadores).length === 0 ? (
+                  <tr><td colSpan={5} className="text-center py-10 text-gray-400">No hay goleadores registrados aún</td></tr>
+                ) : (
+                  goleadores
+                    .filter(g => g.categoria === categoriaGoleadores)
+                    .map((g, i) => (
+                      <tr key={g.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className="px-4 py-3 text-center font-bold text-[#7b0a0a]">{i + 1}</td>
+                        <td className="px-4 py-3 font-bold text-gray-800">{g.jugadores?.nombres} {g.jugadores?.apellidos}</td>
+                        <td className="px-4 py-3 text-gray-600">{g.equipos?.nombre}</td>
+                        <td className="px-4 py-3 text-center font-black text-[#7b0a0a] text-lg">{g.goles}</td>
+                        <td className="px-4 py-3 text-center">
+                          <div className="flex gap-2 justify-center">
+                            <button onClick={() => {
+                              setEditandoGoleador(g)
+                              setFormGoleador({ jugador_id: g.jugador_id, equipo_id: g.equipo_id, goles: g.goles, categoria: g.categoria })
+                              cargarJugadoresEquipo(g.equipo_id)
+                              setShowFormGoleador(true)
+                            }}
+                              className="bg-[#c9a227] text-black px-3 py-1 rounded text-xs font-bold hover:bg-yellow-400 transition">
+                              Editar
+                            </button>
+                            <button onClick={() => handleEliminarGoleador(g.id)}
+                              className="bg-red-500 text-white px-3 py-1 rounded text-xs font-bold hover:bg-red-600 transition">
+                              Eliminar
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+      {/* MODAL DESCUENTOS */}
+{showDescuentos && equipoDescuento && (
+  <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => { setShowDescuentos(null); setShowFormDescuento(false) }}>
+    <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+      <div className="flex justify-between items-center mb-4">
+        <div>
+          <h2 className="font-black text-gray-800 text-lg">{equipoDescuento.equipo_nombre}</h2>
+          <p className="text-gray-500 text-sm">Descuentos de puntos</p>
+        </div>
+        <button onClick={() => { setShowDescuentos(null); setShowFormDescuento(false) }} className="text-gray-400 hover:text-gray-600 text-2xl">✕</button>
+      </div>
+
+      {/* Lista de descuentos */}
+      <div className="space-y-2 mb-4">
+        {descuentos.filter(d => d.equipo_id === equipoDescuento.equipo_id).length === 0 ? (
+          <p className="text-gray-400 text-center py-4">No hay descuentos registrados</p>
+        ) : (
+          descuentos.filter(d => d.equipo_id === equipoDescuento.equipo_id).map(d => (
+            <div key={d.id} className="flex items-center justify-between bg-orange-50 border border-orange-200 rounded-lg p-3">
+              <div>
+                <p className="font-semibold text-gray-800 text-sm">{d.motivo}</p>
+                {d.fecha_partido && <p className="text-gray-500 text-xs">Fecha: {d.fecha_partido}</p>}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="bg-orange-500 text-white font-black px-2 py-1 rounded text-sm">-{d.puntos_descontados} pts</span>
+                <button onClick={() => handleEliminarDescuento(d)}
+                  className="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold hover:bg-red-600 transition">🗑️</button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="border-t pt-3 mb-4">
+        <p className="text-right font-black text-orange-600">
+          Total descontado: {descuentos.filter(d => d.equipo_id === equipoDescuento.equipo_id).reduce((sum, d) => sum + d.puntos_descontados, 0)} pts
+        </p>
+      </div>
+
+      {/* Formulario nuevo descuento */}
+      {showFormDescuento ? (
+        <div className="bg-gray-50 rounded-xl p-4">
+          <h3 className="font-bold text-gray-700 mb-3">Nuevo descuento</h3>
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm font-semibold text-gray-600 mb-1 block">Motivo</label>
+              <input type="text" value={formDescuento.motivo}
+                onChange={e => setFormDescuento({ ...formDescuento, motivo: e.target.value })}
+                placeholder="Ej: W.O., No presentó informe..."
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-gray-600 mb-1 block">Fecha / Partido (opcional)</label>
+              <input type="text" value={formDescuento.fecha_partido}
+                onChange={e => setFormDescuento({ ...formDescuento, fecha_partido: e.target.value })}
+                placeholder="Ej: Fecha 3, Partido vs Ingenieros A..."
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-gray-600 mb-1 block">Puntos a descontar</label>
+              <input type="number" min={1} value={formDescuento.puntos_descontados}
+                onChange={e => setFormDescuento({ ...formDescuento, puntos_descontados: parseInt(e.target.value) || 0 })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={handleAgregarDescuento}
+                className="bg-orange-500 text-white font-bold px-4 py-2 rounded-lg hover:bg-orange-600 transition">
+                Agregar Descuento
+              </button>
+              <button onClick={() => setShowFormDescuento(false)}
+                className="bg-gray-200 text-gray-700 font-bold px-4 py-2 rounded-lg hover:bg-gray-300 transition">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <button onClick={() => setShowFormDescuento(true)}
+          className="w-full bg-orange-500 text-white font-bold py-2 rounded-lg hover:bg-orange-600 transition">
+          + Agregar Descuento
+        </button>
+      )}
     </div>
   </div>
 )}
+
+
     </div>
       <div className="pb-10"></div>
     </main>
