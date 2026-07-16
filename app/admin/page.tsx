@@ -683,11 +683,11 @@ export default function AdminPage() {
                           <div className="flex gap-1 justify-center">
                             <button onClick={() => setEditandoPuntaje(t)}
                               className="bg-[#c9a227] text-black px-2 py-1 rounded text-xs font-bold hover:bg-yellow-400 transition">
-                              ✏️
+                              Editar
                             </button>
                             <button onClick={() => handleEliminarPuntaje(t.id!)}
                               className="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold hover:bg-red-600 transition">
-                              🗑️
+                              Eliminar
                             </button>
                           </div>
                         </td>
@@ -762,7 +762,7 @@ export default function AdminPage() {
 
           {showFormGoleador && (
             <div className="bg-white rounded-xl shadow p-6 mb-6 border-l-4 border-[#c9a227]">
-              <h2 className="font-black text-gray-800 text-lg mb-4">{editandoGoleador ? '✏️ Editar Goleador' : '➕ Nuevo Goleador'}</h2>
+              <h2 className="font-black text-gray-800 text-lg mb-4">{editandoGoleador ? 'Editar Goleador' : '➕ Nuevo Goleador'}</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="text-sm font-semibold text-gray-600 mb-1 block">Categoría</label>
@@ -890,7 +890,7 @@ export default function AdminPage() {
               <div className="flex items-center gap-2">
                 <span className="bg-orange-500 text-white font-black px-2 py-1 rounded text-sm">-{d.puntos_descontados} pts</span>
                 <button onClick={() => handleEliminarDescuento(d)}
-                  className="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold hover:bg-red-600 transition">🗑️</button>
+                  className="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold hover:bg-red-600 transition">Eliminar</button>
               </div>
             </div>
           ))
