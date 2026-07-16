@@ -54,6 +54,13 @@ export default function AdminPage() {
   const [basesUrl, setBasesUrl] = useState('')
   const [basesId, setBasesId] = useState('')
   const [editandoPuntaje, setEditandoPuntaje] = useState<PuntajeEquipo | null>(null)
+  const [goleadores, setGoleadores] = useState<any[]>([])
+  const [categoriaGoleadores, setCategoriaGoleadores] = useState('LIBRE')
+  const [showFormGoleador, setShowFormGoleador] = useState(false)
+  const [editandoGoleador, setEditandoGoleador] = useState<any>(null)
+  const [busquedaGoleador, setBusquedaGoleador] = useState('')
+  const [formGoleador, setFormGoleador] = useState({ jugador_id: '', equipo_id: '', goles: 0, categoria: 'LIBRE' })
+  const [jugadoresEquipoSeleccionado, setJugadoresEquipoSeleccionado] = useState<any[]>([])
 
   useEffect(() => {
     const rol = localStorage.getItem('rol')
@@ -62,8 +69,8 @@ export default function AdminPage() {
   }, [])
 
   const cargarTodo = async () => {
-    await Promise.all([cargarEquipos(), cargarFixture(), cargarTabla(), cargarBases()])
-    setLoading(false)
+  await Promise.all([cargarEquipos(), cargarFixture(), cargarTabla(), cargarBases(), cargarGoleadores()])
+  setLoading(false)
   }
 
   const cargarEquipos = async () => {
@@ -85,7 +92,39 @@ export default function AdminPage() {
         }))
         setTabla(conNombres)
     }
-}
+  }
+
+  const cargarGoleadores = async () => {
+  const { data } = await supabase
+    .from('goleadores')
+    .select('*, jugadores(nombres, apellidos), equipos(nombre)')
+    .order('goles', { ascending: false })
+  setGoleadores(data || [])
+  }
+
+  const cargarJugadoresEquipo = async (equipoId: string) => {
+    const { data } = await supabase.from('jugadores').select('*').eq('equipo_id', equipoId).order('apellidos')
+    setJugadoresEquipoSeleccionado(data || [])
+  }
+
+  const handleGuardarGoleador = async () => {
+    if (!formGoleador.jugador_id || !formGoleador.equipo_id) { alert('Selecciona equipo y jugador'); return }
+    const datos = { ...formGoleador }
+    if (editandoGoleador) {
+      await supabase.from('goleadores').update(datos).eq('id', editandoGoleador.id)
+    } else {
+      await supabase.from('goleadores').insert(datos)
+    }
+    setFormGoleador({ jugador_id: '', equipo_id: '', goles: 0, categoria: 'LIBRE' })
+    setShowFormGoleador(false); setEditandoGoleador(null)
+    cargarGoleadores()
+  }
+
+  const handleEliminarGoleador = async (id: string) => {
+    if (!confirm('¿Eliminar este goleador?')) return
+    await supabase.from('goleadores').delete().eq('id', id)
+    cargarGoleadores()
+  }
 
   const cargarBases = async () => {
     const { data } = await supabase.from('bases').select('*').order('created_at', { ascending: false }).limit(1)
@@ -167,7 +206,7 @@ export default function AdminPage() {
 
   const handleGuardarPuntaje = async () => {
   if (!editandoPuntaje) return
-  const puntos = editandoPuntaje.pg * 3 + editandoPuntaje.pe
+  const puntos = editandoPuntaje.pg * 3 + editandoPuntaje.pe * 2 + editandoPuntaje.pp * 1
 
   const datos = {
     equipo_id: editandoPuntaje.equipo_id,
@@ -221,6 +260,7 @@ export default function AdminPage() {
     { id: 'fixture', label: '📅 Fixture', count: fixture.length },
     { id: 'tabla', label: '🏆 Tabla', count: tabla.length },
     { id: 'bases', label: '📋 Bases', count: basesUrl ? 1 : 0 },
+    { id: 'goleadores', label: '⚽ Goleadores', count: goleadores.length },
   ]
 
   return (
@@ -592,6 +632,126 @@ export default function AdminPage() {
         )}
 
       </div>
+      {/* ===== GOLEADORES ===== */}
+{seccionActiva === 'goleadores' && (
+  <div>
+    <div className="flex gap-3 mb-6">
+      {['LIBRE', 'MASTER'].map(cat => (
+        <button key={cat} onClick={() => setCategoriaGoleadores(cat)}
+          className={`px-5 py-2 rounded-xl font-bold text-sm transition ${categoriaGoleadores === cat ? 'bg-[#7b0a0a] text-white' : 'bg-white text-gray-700'}`}>
+          {cat === 'MASTER' ? 'MÁSTER' : cat}
+        </button>
+      ))}
+      <button onClick={() => { setShowFormGoleador(true); setEditandoGoleador(null); setFormGoleador({ jugador_id: '', equipo_id: '', goles: 0, categoria: categoriaGoleadores }) }}
+        className="ml-auto bg-[#7b0a0a] text-white font-bold px-5 py-2 rounded-xl hover:bg-[#5a0808] transition">
+        + Agregar Goleador
+      </button>
+    </div>
+
+    {showFormGoleador && (
+      <div className="bg-white rounded-xl shadow p-6 mb-6 border-l-4 border-[#c9a227]">
+        <h2 className="font-black text-gray-800 text-lg mb-4">{editandoGoleador ? '✏️ Editar Goleador' : '➕ Nuevo Goleador'}</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="text-sm font-semibold text-gray-600 mb-1 block">Categoría</label>
+            <select value={formGoleador.categoria}
+              onChange={e => setFormGoleador({ ...formGoleador, categoria: e.target.value, equipo_id: '', jugador_id: '' })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7b0a0a]">
+              <option value="LIBRE">Libre</option>
+              <option value="MASTER">Máster</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-semibold text-gray-600 mb-1 block">Equipo</label>
+            <select value={formGoleador.equipo_id}
+              onChange={e => { setFormGoleador({ ...formGoleador, equipo_id: e.target.value, jugador_id: '' }); cargarJugadoresEquipo(e.target.value) }}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7b0a0a]">
+              <option value="">Selecciona equipo</option>
+              {equipos.filter(e => e.categoria === formGoleador.categoria).map(e => (
+                <option key={e.id} value={e.id}>{e.nombre}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-semibold text-gray-600 mb-1 block">Jugador</label>
+            <select value={formGoleador.jugador_id}
+              onChange={e => setFormGoleador({ ...formGoleador, jugador_id: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7b0a0a]"
+              disabled={!formGoleador.equipo_id}>
+              <option value="">Selecciona jugador</option>
+              {jugadoresEquipoSeleccionado.map(j => (
+                <option key={j.id} value={j.id}>{j.nombres} {j.apellidos}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-semibold text-gray-600 mb-1 block">Número de Goles</label>
+            <input type="number" min={0} value={formGoleador.goles}
+              onChange={e => setFormGoleador({ ...formGoleador, goles: parseInt(e.target.value) || 0 })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7b0a0a]" />
+          </div>
+        </div>
+        <div className="flex gap-3 mt-4">
+          <button onClick={handleGuardarGoleador}
+            className="bg-[#7b0a0a] text-white font-bold px-6 py-2 rounded-lg hover:bg-[#5a0808] transition">
+            {editandoGoleador ? 'Guardar Cambios' : 'Agregar Goleador'}
+          </button>
+          <button onClick={() => { setShowFormGoleador(false); setEditandoGoleador(null) }}
+            className="bg-gray-200 text-gray-700 font-bold px-6 py-2 rounded-lg hover:bg-gray-300 transition">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    )}
+
+    <div className="bg-white rounded-xl shadow overflow-hidden">
+      <table className="w-full text-sm">
+        <thead className="bg-[#7b0a0a] text-white">
+          <tr>
+            <th className="px-4 py-3 text-center font-black">#</th>
+            <th className="px-4 py-3 text-left font-black">Jugador</th>
+            <th className="px-4 py-3 text-left font-black">Equipo</th>
+            <th className="px-4 py-3 text-center font-black">⚽ Goles</th>
+            <th className="px-4 py-3 text-center font-black">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {goleadores.filter(g => g.categoria === categoriaGoleadores).length === 0 ? (
+            <tr><td colSpan={5} className="text-center py-10 text-gray-400">No hay goleadores registrados aún</td></tr>
+          ) : (
+            goleadores
+              .filter(g => g.categoria === categoriaGoleadores)
+              .map((g, i) => (
+                <tr key={g.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <td className="px-4 py-3 text-center font-bold text-[#7b0a0a]">{i + 1}</td>
+                  <td className="px-4 py-3 font-bold text-gray-800">{g.jugadores?.nombres} {g.jugadores?.apellidos}</td>
+                  <td className="px-4 py-3 text-gray-600">{g.equipos?.nombre}</td>
+                  <td className="px-4 py-3 text-center font-black text-[#7b0a0a] text-lg">{g.goles}</td>
+                  <td className="px-4 py-3 text-center">
+                    <div className="flex gap-2 justify-center">
+                      <button onClick={() => {
+                        setEditandoGoleador(g)
+                        setFormGoleador({ jugador_id: g.jugador_id, equipo_id: g.equipo_id, goles: g.goles, categoria: g.categoria })
+                        cargarJugadoresEquipo(g.equipo_id)
+                        setShowFormGoleador(true)
+                      }}
+                        className="bg-[#c9a227] text-black px-3 py-1 rounded text-xs font-bold hover:bg-yellow-400 transition">
+                        Editar
+                      </button>
+                      <button onClick={() => handleEliminarGoleador(g.id)}
+                        className="bg-red-500 text-white px-3 py-1 rounded text-xs font-bold hover:bg-red-600 transition">
+                        Eliminar
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  </div>
+)}
       <div className="pb-10"></div>
     </main>
   )
