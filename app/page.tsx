@@ -570,8 +570,8 @@ const ocultarDNI = (dni: string) => {
             <table className="w-full text-sm">
               <thead className="bg-[#7b0a0a]">
                 <tr>
-                  {['#', 'Equipo', 'PJ', 'PG', 'PE', 'PP', 'GF', 'GC', 'DG', 'Pts'].map(h => (
-                    <th key={h} className="px-3 py-3 text-[#c9a227] font-black text-center">{h}</th>
+                  {['#', 'Equipo', 'PJ', 'PG', 'PE', 'PP', 'WO', 'GF', 'GC', 'DG', 'Pts', '-Pts', 'Total'].map(h => (
+                    <th key={h} className={`px-3 py-3 font-black text-center ${h === '-Pts' ? 'text-orange-400' : h === 'Total' ? 'text-yellow-300' : 'text-[#c9a227]'}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -598,10 +598,13 @@ const ocultarDNI = (dni: string) => {
                         <td className="px-3 py-3 text-center text-green-400 font-semibold">{t.pg}</td>
                         <td className="px-3 py-3 text-center text-yellow-400 font-semibold">{t.pe}</td>
                         <td className="px-3 py-3 text-center text-red-400 font-semibold">{t.pp}</td>
+                        <td className="px-3 py-3 text-center text-purple-400 font-semibold">{t.wo || 0}</td>
                         <td className="px-3 py-3 text-center text-white">{t.gf}</td>
                         <td className="px-3 py-3 text-center text-white">{t.gc}</td>
-                        <td className="px-3 py-3 text-center text-white">{t.gf - t.gc}</td>
+                        <td className="px-3 py-3 text-center text-white">{(t.gf || 0) - (t.gc || 0)}</td>
                         <td className="px-3 py-3 text-center font-black text-[#c9a227] text-base">{t.puntos}</td>
+                        <td className="px-3 py-3 text-center font-bold text-orange-400">{t.pts_descontados || 0}</td>
+                        <td className="px-3 py-3 text-center font-black text-yellow-300 text-base">{(t.puntos || 0) - (t.pts_descontados || 0)}</td>
                       </tr>
                     ))
                 )}
