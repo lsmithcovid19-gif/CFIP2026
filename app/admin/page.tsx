@@ -855,7 +855,7 @@ const handleEliminarTarjeta = async (id: string) => {
       {/* ===== GOLEADORES ===== */}
       {seccionActiva === 'goleadores' && (
         <div>
-          <div className="flex gap-3 mb-6">
+          <div className="flex gap-3 mb-3">
             {['LIBRE', 'MASTER'].map(cat => (
               <button key={cat} onClick={() => { setCategoriaGoleadores(cat); setBusquedaGoleador('') }}
                 className={`px-5 py-2 rounded-xl font-bold text-sm transition ${categoriaGoleadores === cat ? 'bg-[#7b0a0a] text-white' : 'bg-white text-gray-700'}`}>
@@ -865,15 +865,15 @@ const handleEliminarTarjeta = async (id: string) => {
             <button onClick={() => { setShowFormGoleador(true); setEditandoGoleador(null); setFormGoleador({ jugador_id: '', equipo_id: '', goles: 0, categoria: categoriaGoleadores }) }}
               className="ml-auto bg-[#7b0a0a] text-white font-bold px-5 py-2 rounded-xl hover:bg-[#5a0808] transition">
               + Agregar Goleador
-              <input
-                type="text"
-                placeholder="🔍 Buscar jugador o equipo..."
-                value={busquedaGoleador}
-                onChange={e => setBusquedaGoleador(e.target.value)}
-                className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7b0a0a]"
-              />
             </button>
           </div>
+          <input
+            type="text"
+            placeholder="🔍 Buscar jugador o equipo..."
+            value={busquedaGoleador}
+            onChange={e => setBusquedaGoleador(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-4 py-2 mb-6 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7b0a0a]"
+          />
 
           {showFormGoleador && (
             <div className="bg-white rounded-xl shadow p-6 mb-6 border-l-4 border-[#c9a227]">
