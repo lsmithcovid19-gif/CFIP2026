@@ -114,7 +114,7 @@ export default function AdminPage() {
     .select('*, jugadores(nombres, apellidos), equipos(nombre)')
     .order('goles', { ascending: false })
   setGoleadores(data || [])
-  }
+}
 
   const cargarJugadoresEquipo = async (equipoId: string) => {
     const { data } = await supabase.from('jugadores').select('*').eq('equipo_id', equipoId).order('apellidos')
@@ -122,17 +122,32 @@ export default function AdminPage() {
   }
 
   const handleGuardarGoleador = async () => {
-    if (!formGoleador.jugador_id || !formGoleador.equipo_id) { alert('Selecciona equipo y jugador'); return }
-    const datos = { ...formGoleador }
-    if (editandoGoleador) {
-      await supabase.from('goleadores').update(datos).eq('id', editandoGoleador.id)
-    } else {
-      await supabase.from('goleadores').insert(datos)
-    }
-    setFormGoleador({ jugador_id: '', equipo_id: '', goles: 0, categoria: 'LIBRE' })
-    setShowFormGoleador(false); setEditandoGoleador(null)
-    cargarGoleadores()
+  if (!formGoleador.jugador_id || !formGoleador.equipo_id) { alert('Selecciona equipo y jugador'); return }
+  
+  // Verificar si ya existe ese jugador
+  const { data: existe } = await supabase
+    .from('goleadores')
+    .select('id')
+    .eq('jugador_id', formGoleador.jugador_id)
+    .single()
+
+  if (editandoGoleador) {
+    await supabase.from('goleadores').update({ goles: formGoleador.goles }).eq('id', editandoGoleador.id)
+  } else if (existe) {
+    // Si ya existe, solo actualiza los goles
+    await supabase.from('goleadores').update({ goles: formGoleador.goles }).eq('id', existe.id)
+  } else {
+    await supabase.from('goleadores').insert({
+      jugador_id: formGoleador.jugador_id,
+      equipo_id: formGoleador.equipo_id,
+      categoria: formGoleador.categoria,
+      goles: formGoleador.goles,
+    })
   }
+  setFormGoleador({ jugador_id: '', equipo_id: '', goles: 0, categoria: 'LIBRE' })
+  setShowFormGoleador(false); setEditandoGoleador(null)
+  cargarGoleadores()
+}
 
   const handleEliminarGoleador = async (id: string) => {
     if (!confirm('¿Eliminar este goleador?')) return
