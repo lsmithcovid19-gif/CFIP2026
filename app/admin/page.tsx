@@ -174,6 +174,8 @@ const handleRegistrarTarjeta = async () => {
     alert('Completa todos los campos incluyendo la fecha')
     return
   }
+
+  // Insertar en historial
   await supabase.from('historial_tarjetas').insert({
     jugador_id: formTarjeta.jugador_id,
     equipo_id: formTarjeta.equipo_id,
@@ -183,9 +185,13 @@ const handleRegistrarTarjeta = async () => {
     rojas: formTarjeta.rojas,
     motivo: formTarjeta.motivo || '',
   })
+
+  // Verificar si ya existe registro para ese jugador
   const { data: tarjetaActual } = await supabase
-    .from('tarjetas').select('*')
-    .eq('jugador_id', formTarjeta.jugador_id).single()
+    .from('tarjetas')
+    .select('*')
+    .eq('jugador_id', formTarjeta.jugador_id)
+    .single()
 
   const amarillasAnteriores = tarjetaActual?.amarillas || 0
   const rojasAnteriores = tarjetaActual?.rojas || 0
@@ -211,8 +217,10 @@ const handleRegistrarTarjeta = async () => {
   }
 
   if (tarjetaActual) {
+    // Actualizar registro existente
     await supabase.from('tarjetas').update(datosActualizados).eq('jugador_id', formTarjeta.jugador_id)
   } else {
+    // Crear nuevo registro
     await supabase.from('tarjetas').insert(datosActualizados)
   }
 
