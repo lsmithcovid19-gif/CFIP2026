@@ -46,6 +46,7 @@ export default function HomePage() {
   const [mostrarTodosGoleadores, setMostrarTodosGoleadores] = useState(false)
   const [tarjetasData, setTarjetasData] = useState<any[]>([])
   const [categoriaTarjetasPublico, setCategoriaTarjetasPublico] = useState('LIBRE')
+  const [mostrarTodasTarjetas, setMostrarTodasTarjetas] = useState(false)
 
 useEffect(() => {
   const rol = localStorage.getItem('rol')
@@ -759,7 +760,7 @@ const ocultarDNI = (dni: string) => {
 
     <div className="flex justify-center gap-3 mb-6">
       {['LIBRE', 'MASTER'].map(cat => (
-        <button key={cat} onClick={() => setCategoriaTarjetasPublico(cat)}
+        <button key={cat} onClick={() => { setCategoriaTarjetasPublico(cat); setMostrarTodasTarjetas(false) }}
           className={`px-5 py-2 rounded-full font-bold text-sm transition ${categoriaTarjetasPublico === cat ? 'bg-[#c9a227] text-black' : 'bg-white text-gray-700 border border-gray-300'}`}>
           {cat === 'MASTER' ? 'MÁSTER' : cat}
         </button>
@@ -785,6 +786,7 @@ const ocultarDNI = (dni: string) => {
             tarjetasData
               .filter(t => t.categoria === categoriaTarjetasPublico)
               .sort((a, b) => b.amarillas - a.amarillas)
+              .slice(0, mostrarTodasTarjetas ? undefined : 10)
               .map((t, i) => (
                 <tr key={t.id} className={`${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${t.suspendido ? 'border-l-4 border-red-500' : ''}`}>
                   <td className="px-4 py-3 font-bold text-[#7b0a0a]">{i + 1}</td>
@@ -806,6 +808,14 @@ const ocultarDNI = (dni: string) => {
           )}
         </tbody>
       </table>
+        {tarjetasData.filter(t => t.categoria === categoriaTarjetasPublico).length > 10 && (
+    <div className="text-center py-4 bg-white">
+      <button onClick={() => setMostrarTodasTarjetas(!mostrarTodasTarjetas)}
+        className="bg-[#c9a227] text-black font-black px-6 py-2 rounded-xl hover:bg-yellow-400 transition">
+        {mostrarTodasTarjetas ? '▲ Ver menos' : `▼ Ver todos (${tarjetasData.filter(t => t.categoria === categoriaTarjetasPublico).length})`}
+      </button>
+    </div>
+  )}
     </div>
   </div>
 </section>
