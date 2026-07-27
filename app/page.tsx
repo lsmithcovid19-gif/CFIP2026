@@ -44,6 +44,8 @@ export default function HomePage() {
   const [goleadoresData, setGoleadoresData] = useState<any[]>([])
   const [categoriaGoleadores, setCategoriaGoleadores] = useState('LIBRE')
   const [mostrarTodosGoleadores, setMostrarTodosGoleadores] = useState(false)
+  const [tarjetasData, setTarjetasData] = useState<any[]>([])
+  const [categoriaTarjetasPublico, setCategoriaTarjetasPublico] = useState('LIBRE')
 
 useEffect(() => {
   const rol = localStorage.getItem('rol')
@@ -155,6 +157,12 @@ const handleCerrarSesion = () => {
       .select('*, jugadores(nombres, apellidos), equipos(nombre)')
       .order('goles', { ascending: false })
     setGoleadoresData(goles || [])
+
+    const { data: tarjetas } = await supabase
+      .from('tarjetas')
+      .select('*, jugadores(nombres, apellidos), equipos(nombre)')
+      .order('amarillas', { ascending: false })
+    setTarjetasData(tarjetas || [])
   }
   cargarDatos()
 }, [])
@@ -194,6 +202,7 @@ const ocultarDNI = (dni: string) => {
         { id: 'fixture', label: 'Fixture' },
         { id: 'tabla', label: 'Tabla' },
         { id: 'goleadores', label: 'Goleadores' },
+        { id: 'tarjetas', label: 'Tarjetas' },
         { id: 'contacto', label: 'Contacto' },
       ].map(item => (
         <button key={item.id} onClick={() => scrollTo(item.id)}
@@ -733,6 +742,69 @@ const ocultarDNI = (dni: string) => {
             </button>
           </div>
         )}
+      </table>
+    </div>
+  </div>
+</section>
+
+{/* TABLA DE TARJETAS */}
+<section id="tarjetas" className="py-20 relative overflow-hidden" style={{background: 'linear-gradient(135deg, #fff9f0 0%, #fff3dc 50%, #fff9f0 100%)'}}>
+  <div className="absolute inset-0 opacity-30" style={{backgroundImage: 'repeating-linear-gradient(45deg, #c9a227 0, #c9a227 2px, transparent 0, transparent 50%)', backgroundSize: '20px 20px'}}></div>
+  <div className="max-w-5xl mx-auto px-4 relative z-10">
+    <div className="text-center mb-12">
+      <p className="text-[#a67c00] font-bold tracking-widest text-sm uppercase mb-2">Disciplina</p>
+      <h2 className="text-4xl font-black text-[#1a0000]">TABLA DE TARJETAS</h2>
+      <div className="w-24 h-1 bg-[#c9a227] mx-auto mt-4"></div>
+    </div>
+
+    <div className="flex justify-center gap-3 mb-6">
+      {['LIBRE', 'MASTER'].map(cat => (
+        <button key={cat} onClick={() => setCategoriaTarjetasPublico(cat)}
+          className={`px-5 py-2 rounded-full font-bold text-sm transition ${categoriaTarjetasPublico === cat ? 'bg-[#c9a227] text-black' : 'bg-white text-gray-700 border border-gray-300'}`}>
+          {cat === 'MASTER' ? 'MÁSTER' : cat}
+        </button>
+      ))}
+    </div>
+
+    <div className="bg-white rounded-2xl shadow overflow-hidden border border-[#c9a227]/30">
+      <table className="w-full text-sm">
+        <thead className="bg-[#7b0a0a]">
+          <tr>
+            <th className="px-4 py-3 text-left text-[#c9a227] font-black">#</th>
+            <th className="px-4 py-3 text-left text-[#c9a227] font-black">Jugador</th>
+            <th className="px-4 py-3 text-left text-[#c9a227] font-black">Equipo</th>
+            <th className="px-4 py-3 text-center text-yellow-300 font-black">🟨</th>
+            <th className="px-4 py-3 text-center text-red-300 font-black">🟥</th>
+            <th className="px-4 py-3 text-center text-[#c9a227] font-black">Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {tarjetasData.filter(t => t.categoria === categoriaTarjetasPublico).length === 0 ? (
+            <tr><td colSpan={6} className="text-center py-10 text-gray-400">No hay tarjetas registradas aún</td></tr>
+          ) : (
+            tarjetasData
+              .filter(t => t.categoria === categoriaTarjetasPublico)
+              .sort((a, b) => b.amarillas - a.amarillas)
+              .map((t, i) => (
+                <tr key={t.id} className={`${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${t.suspendido ? 'border-l-4 border-red-500' : ''}`}>
+                  <td className="px-4 py-3 font-bold text-[#7b0a0a]">{i + 1}</td>
+                  <td className="px-4 py-3 font-bold text-gray-800">{t.jugadores?.nombres} {t.jugadores?.apellidos}</td>
+                  <td className="px-4 py-3 text-gray-600">{t.equipos?.nombre}</td>
+                  <td className="px-4 py-3 text-center font-black text-yellow-500 text-lg">{t.amarillas}</td>
+                  <td className="px-4 py-3 text-center font-black text-red-500 text-lg">{t.rojas}</td>
+                  <td className="px-4 py-3 text-center">
+                    {t.suspendido ? (
+                      <span className="bg-red-100 text-red-700 font-black px-3 py-1 rounded-full text-xs">🚫 SUSPENDIDO</span>
+                    ) : (t.amarillas_restantes || 0) >= 2 ? (
+                      <span className="bg-yellow-100 text-yellow-700 font-bold px-3 py-1 rounded-full text-xs">⚠️ EN RIESGO</span>
+                    ) : (
+                      <span className="bg-green-100 text-green-700 font-bold px-3 py-1 rounded-full text-xs">✅ HABILITADO</span>
+                    )}
+                  </td>
+                </tr>
+              ))
+          )}
+        </tbody>
       </table>
     </div>
   </div>
