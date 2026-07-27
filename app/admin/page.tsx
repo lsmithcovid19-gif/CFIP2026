@@ -73,6 +73,7 @@ export default function AdminPage() {
   const [showFormTarjeta, setShowFormTarjeta] = useState(false)
   const [formTarjeta, setFormTarjeta] = useState({ jugador_id: '', equipo_id: '', categoria: 'LIBRE', amarillas: 0, rojas: 0, fecha_partido: '', motivo: '' })
   const [jugadoresTarjetaEquipo, setJugadoresTarjetaEquipo] = useState<any[]>([])
+    
 
   useEffect(() => {
     const rol = localStorage.getItem('rol')
@@ -856,7 +857,7 @@ const handleEliminarTarjeta = async (id: string) => {
         <div>
           <div className="flex gap-3 mb-6">
             {['LIBRE', 'MASTER'].map(cat => (
-              <button key={cat} onClick={() => setCategoriaGoleadores(cat)}
+              <button key={cat} onClick={() => { setCategoriaGoleadores(cat); setBusquedaGoleador('') }}
                 className={`px-5 py-2 rounded-xl font-bold text-sm transition ${categoriaGoleadores === cat ? 'bg-[#7b0a0a] text-white' : 'bg-white text-gray-700'}`}>
                 {cat === 'MASTER' ? 'MÁSTER' : cat}
               </button>
@@ -864,6 +865,13 @@ const handleEliminarTarjeta = async (id: string) => {
             <button onClick={() => { setShowFormGoleador(true); setEditandoGoleador(null); setFormGoleador({ jugador_id: '', equipo_id: '', goles: 0, categoria: categoriaGoleadores }) }}
               className="ml-auto bg-[#7b0a0a] text-white font-bold px-5 py-2 rounded-xl hover:bg-[#5a0808] transition">
               + Agregar Goleador
+              <input
+                type="text"
+                placeholder="🔍 Buscar jugador o equipo..."
+                value={busquedaGoleador}
+                onChange={e => setBusquedaGoleador(e.target.value)}
+                className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7b0a0a]"
+              />
             </button>
           </div>
 
@@ -935,12 +943,18 @@ const handleEliminarTarjeta = async (id: string) => {
                 </tr>
               </thead>
               <tbody>
-                {goleadores.filter(g => g.categoria === categoriaGoleadores).length === 0 ? (
+                {goleadores.filter(g => g.categoria === categoriaGoleadores &&
+                  (busquedaGoleador === '' ||
+                    `${g.jugadores?.nombres} ${g.jugadores?.apellidos}`.toLowerCase().includes(busquedaGoleador.toLowerCase()) ||
+                    g.equipos?.nombre.toLowerCase().includes(busquedaGoleador.toLowerCase())
+                  )).length === 0 ? (
                   <tr><td colSpan={5} className="text-center py-10 text-gray-400">No hay goleadores registrados aún</td></tr>
                 ) : (
-                  goleadores
-                    .filter(g => g.categoria === categoriaGoleadores)
-                    .map((g, i) => (
+                  goleadores.filter(g => g.categoria === categoriaGoleadores &&
+                    (busquedaGoleador === '' ||
+                      `${g.jugadores?.nombres} ${g.jugadores?.apellidos}`.toLowerCase().includes(busquedaGoleador.toLowerCase()) ||
+                      g.equipos?.nombre.toLowerCase().includes(busquedaGoleador.toLowerCase())
+                    )).map((g, i) => (
                       <tr key={g.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                         <td className="px-4 py-3 text-center font-bold text-[#7b0a0a]">{i + 1}</td>
                         <td className="px-4 py-3 font-bold text-gray-800">{g.jugadores?.nombres} {g.jugadores?.apellidos}</td>
