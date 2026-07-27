@@ -38,6 +38,10 @@ export default function HomePage() {
   const [fixtureList, setFixtureList] = useState<{id: string, fecha_numero: number, descripcion: string, url: string}[]>([])
   const [tablaData, setTablaData] = useState<any[]>([])
   const [categoriaTabla, setCategoriaTabla] = useState('LIBRE')
+  const [descuentosData, setDescuentosData] = useState<any[]>([])
+  const [showDescuentosPublico, setShowDescuentosPublico] = useState<string | null>(null)
+  const [equipoDescuentoPublico, setEquipoDescuentoPublico] = useState<any>(null)
+
 useEffect(() => {
   const rol = localStorage.getItem('rol')
   if (rol) {
@@ -128,6 +132,9 @@ const handleCerrarSesion = () => {
   const cargarDatos = async () => {
     const { data: equipos } = await supabase.from('equipos').select('*').order('categoria').order('nombre')
     setEquiposReales(equipos || [])
+
+    const { data: descuentos } = await supabase.from('descuentos').select('*').order('created_at', { ascending: false })
+    setDescuentosData(descuentos || [])
 
     const { data: bases } = await supabase.from('bases').select('*').order('created_at', { ascending: false }).limit(1)
     if (bases && bases.length > 0) setBasesUrl(bases[0].url)
@@ -483,6 +490,48 @@ const ocultarDNI = (dni: string) => {
             </div>
           </div>
         )}
+
+        {/* MODAL DESCUENTOS PÚBLICO */}
+{showDescuentosPublico && equipoDescuentoPublico && (
+  <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4"
+    onClick={() => setShowDescuentosPublico(null)}>
+    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 max-h-[85vh] overflow-y-auto"
+      onClick={e => e.stopPropagation()}>
+      <div className="flex justify-between items-center mb-4">
+        <div>
+          <h2 className="font-black text-gray-800 text-lg">{equipoDescuentoPublico.equipos?.nombre}</h2>
+          <p className="text-gray-500 text-sm">Detalle de descuentos</p>
+        </div>
+        <button onClick={() => setShowDescuentosPublico(null)}
+          className="text-gray-400 hover:text-gray-600 text-2xl">✕</button>
+      </div>
+
+      <div className="space-y-2 mb-4">
+        {descuentosData.filter(d => d.equipo_id === equipoDescuentoPublico.equipo_id).length === 0 ? (
+          <p className="text-gray-400 text-center py-4">No hay descuentos registrados</p>
+        ) : (
+          descuentosData.filter(d => d.equipo_id === equipoDescuentoPublico.equipo_id).map(d => (
+            <div key={d.id} className="flex items-center justify-between bg-orange-50 border border-orange-200 rounded-lg p-3">
+              <div>
+                <p className="font-semibold text-gray-800 text-sm">{d.motivo}</p>
+                {d.fecha_partido && <p className="text-gray-500 text-xs">Fecha: {d.fecha_partido}</p>}
+              </div>
+              <span className="bg-orange-500 text-white font-black px-2 py-1 rounded text-sm">
+                -{d.puntos_descontados} pts
+              </span>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="border-t pt-3">
+        <p className="text-right font-black text-orange-600">
+          Total descontado: {descuentosData.filter(d => d.equipo_id === equipoDescuentoPublico.equipo_id).reduce((sum, d) => sum + d.puntos_descontados, 0)} pts
+        </p>
+      </div>
+    </div>
+  </div>
+)}
       </section>
 
       {/* BASES */}
@@ -603,7 +652,12 @@ const ocultarDNI = (dni: string) => {
                         <td className="px-3 py-3 text-center text-white">{t.gc}</td>
                         <td className="px-3 py-3 text-center text-white">{(t.gf || 0) - (t.gc || 0)}</td>
                         <td className="px-3 py-3 text-center font-black text-[#c9a227] text-base">{t.puntos}</td>
-                        <td className="px-3 py-3 text-center font-bold text-orange-400">{t.pts_descontados || 0}</td>
+                        <td className="px-3 py-3 text-center">
+                          <button onClick={() => { setEquipoDescuentoPublico(t); setShowDescuentosPublico(t.id) }}
+                            className={`font-bold px-2 py-1 rounded text-xs transition ${(t.pts_descontados || 0) > 0 ? 'bg-orange-500 text-white hover:bg-orange-600' : 'text-orange-400'}`}>
+                            {t.pts_descontados || 0}
+                          </button>
+                        </td>
                         <td className="px-3 py-3 text-center font-black text-yellow-300 text-base">{(t.puntos || 0) - (t.pts_descontados || 0)}</td>
                       </tr>
                     ))
