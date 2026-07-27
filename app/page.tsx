@@ -43,6 +43,7 @@ export default function HomePage() {
   const [equipoDescuentoPublico, setEquipoDescuentoPublico] = useState<any>(null)
   const [goleadoresData, setGoleadoresData] = useState<any[]>([])
   const [categoriaGoleadores, setCategoriaGoleadores] = useState('LIBRE')
+  const [mostrarTodosGoleadores, setMostrarTodosGoleadores] = useState(false)
 
 useEffect(() => {
   const rol = localStorage.getItem('rol')
@@ -690,7 +691,7 @@ const ocultarDNI = (dni: string) => {
 
     <div className="flex justify-center gap-3 mb-6">
       {['LIBRE', 'MASTER'].map(cat => (
-        <button key={cat} onClick={() => setCategoriaGoleadores(cat)}
+        <button key={cat} onClick={() => { setCategoriaGoleadores(cat); setMostrarTodosGoleadores(false) }}
           className={`px-5 py-2 rounded-full font-bold text-sm transition ${categoriaGoleadores === cat ? 'bg-[#c9a227] text-black' : 'bg-[#2a0000] text-white border border-[#c9a227]/30 hover:bg-[#3a0000]'}`}>
           {cat === 'MASTER' ? 'MÁSTER' : cat}
         </button>
@@ -713,6 +714,7 @@ const ocultarDNI = (dni: string) => {
           ) : (
             goleadoresData
               .filter(g => g.categoria === categoriaGoleadores)
+              .slice(0, mostrarTodosGoleadores ? undefined : 10)
               .map((g, i) => (
                 <tr key={g.id} className={i % 2 === 0 ? 'bg-[#1a0000]' : 'bg-[#2a0000]'}>
                   <td className="px-4 py-3 text-center font-bold text-[#c9a227]">{i + 1}</td>
@@ -723,6 +725,14 @@ const ocultarDNI = (dni: string) => {
               ))
           )}
         </tbody>
+        {goleadoresData.filter(g => g.categoria === categoriaGoleadores).length > 10 && (
+          <div className="text-center py-4">
+            <button onClick={() => setMostrarTodosGoleadores(!mostrarTodosGoleadores)}
+              className="bg-[#c9a227] text-black font-black px-6 py-2 rounded-xl hover:bg-yellow-400 transition">
+              {mostrarTodosGoleadores ? '▲ Ver menos' : `▼ Ver todos (${goleadoresData.filter(g => g.categoria === categoriaGoleadores).length})`}
+            </button>
+          </div>
+        )}
       </table>
     </div>
   </div>
