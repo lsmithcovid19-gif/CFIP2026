@@ -68,6 +68,11 @@ export default function AdminPage() {
   const [busquedaGoleador, setBusquedaGoleador] = useState('')
   const [formGoleador, setFormGoleador] = useState({ jugador_id: '', equipo_id: '', goles: 0, categoria: 'LIBRE' })
   const [jugadoresEquipoSeleccionado, setJugadoresEquipoSeleccionado] = useState<any[]>([])
+  const [tarjetas, setTarjetas] = useState<any[]>([])
+  const [categoriaTarjetas, setCategoriaTarjetas] = useState('LIBRE')
+  const [showFormTarjeta, setShowFormTarjeta] = useState(false)
+  const [formTarjeta, setFormTarjeta] = useState({ jugador_id: '', equipo_id: '', categoria: 'LIBRE', amarillas: 0, rojas: 0, fecha_partido: '', motivo: '' })
+  const [jugadoresTarjetaEquipo, setJugadoresTarjetaEquipo] = useState<any[]>([])
 
   useEffect(() => {
     const rol = localStorage.getItem('rol')
@@ -76,8 +81,8 @@ export default function AdminPage() {
   }, [])
 
   const cargarTodo = async () => {
-  await Promise.all([cargarEquipos(), cargarFixture(), cargarTabla(), cargarBases(), cargarGoleadores()])
-  setLoading(false)
+    await Promise.all([cargarEquipos(), cargarFixture(), cargarTabla(), cargarBases(), cargarGoleadores(), cargarTarjetas()])
+    setLoading(false)
   }
 
   const cargarEquipos = async () => {
@@ -135,6 +140,82 @@ export default function AdminPage() {
     cargarGoleadores()
   }
 
+  const cargarTarjetas = async () => {
+  const { data } = await supabase
+    .from('tarjetas')
+    .select('*, jugadores(nombres, apellidos), equipos(nombre)')
+    .order('amarillas', { ascending: false })
+  setTarjetas(data || [])
+}
+
+const cargarJugadoresTarjetaEquipo = async (equipoId: string) => {
+  const { data } = await supabase.from('jugadores').select('*').eq('equipo_id', equipoId).order('apellidos')
+  setJugadoresTarjetaEquipo(data || [])
+}
+
+const handleRegistrarTarjeta = async () => {
+  if (!formTarjeta.jugador_id || !formTarjeta.equipo_id || !formTarjeta.fecha_partido) {
+    alert('Completa todos los campos incluyendo la fecha')
+    return
+  }
+  await supabase.from('historial_tarjetas').insert({
+    jugador_id: formTarjeta.jugador_id,
+    equipo_id: formTarjeta.equipo_id,
+    categoria: formTarjeta.categoria,
+    fecha_partido: formTarjeta.fecha_partido,
+    amarillas: formTarjeta.amarillas,
+    rojas: formTarjeta.rojas,
+    motivo: formTarjeta.motivo || '',
+  })
+  const { data: tarjetaActual } = await supabase
+    .from('tarjetas').select('*')
+    .eq('jugador_id', formTarjeta.jugador_id).single()
+
+  const amarillasAnteriores = tarjetaActual?.amarillas || 0
+  const rojasAnteriores = tarjetaActual?.rojas || 0
+  const amarillasNuevas = amarillasAnteriores + formTarjeta.amarillas
+  const rojasNuevas = rojasAnteriores + formTarjeta.rojas
+  const rojasAutomaticas = Math.floor(amarillasNuevas / 3)
+  const amarillasRestantes = amarillasNuevas % 3
+  const rojasPorPartido = formTarjeta.amarillas >= 2 ? 1 : 0
+  const totalRojas = rojasNuevas + rojasPorPartido
+  const suspendido = rojasAutomaticas > (tarjetaActual?.rojas_automaticas_aplicadas || 0) || rojasPorPartido > 0 || formTarjeta.rojas > 0
+
+  const datosActualizados = {
+    jugador_id: formTarjeta.jugador_id,
+    equipo_id: formTarjeta.equipo_id,
+    categoria: formTarjeta.categoria,
+    amarillas: amarillasNuevas,
+    amarillas_restantes: amarillasRestantes,
+    rojas: totalRojas,
+    rojas_automaticas_aplicadas: rojasAutomaticas,
+    suspendido,
+    partidos_suspension: suspendido ? 1 : 0,
+    fecha_ultimo_partido: formTarjeta.fecha_partido,
+  }
+
+  if (tarjetaActual) {
+    await supabase.from('tarjetas').update(datosActualizados).eq('jugador_id', formTarjeta.jugador_id)
+  } else {
+    await supabase.from('tarjetas').insert(datosActualizados)
+  }
+
+  setFormTarjeta({ jugador_id: '', equipo_id: '', categoria: 'LIBRE', amarillas: 0, rojas: 0, fecha_partido: '', motivo: '' })
+  setShowFormTarjeta(false)
+  await cargarTarjetas()
+}
+
+const handleLevantarSuspension = async (tarjeta: any) => {
+  if (!confirm(`¿Levantar la suspensión de ${tarjeta.jugadores?.nombres} ${tarjeta.jugadores?.apellidos}?`)) return
+  await supabase.from('tarjetas').update({ suspendido: false, partidos_suspension: 0 }).eq('id', tarjeta.id)
+  await cargarTarjetas()
+}
+
+const handleEliminarTarjeta = async (id: string) => {
+  if (!confirm('¿Eliminar este registro?')) return
+  await supabase.from('tarjetas').delete().eq('id', id)
+  await cargarTarjetas()
+}
   const cargarBases = async () => {
     const { data } = await supabase.from('bases').select('*').order('created_at', { ascending: false }).limit(1)
     if (data && data.length > 0) { setBasesUrl(data[0].url); setBasesId(data[0].id) }
@@ -372,6 +453,7 @@ export default function AdminPage() {
     { id: 'tabla', label: '🏆 Tabla', count: tabla.length },
     { id: 'bases', label: '📋 Bases', count: basesUrl ? 1 : 0 },
     { id: 'goleadores', label: '⚽ Goleadores', count: goleadores.length },
+    { id: 'tarjetas', label: '🟨 Tarjetas', count: tarjetas.length },
   ]
 
   return (
@@ -874,6 +956,161 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+
+    {/* ===== TARJETAS ===== */}
+{seccionActiva === 'tarjetas' && (
+  <div>
+    <div className="flex gap-3 mb-6 flex-wrap">
+      {['LIBRE', 'MASTER'].map(cat => (
+        <button key={cat} onClick={() => setCategoriaTarjetas(cat)}
+          className={`px-5 py-2 rounded-xl font-bold text-sm transition ${categoriaTarjetas === cat ? 'bg-[#7b0a0a] text-white' : 'bg-white text-gray-700'}`}>
+          {cat === 'MASTER' ? 'MÁSTER' : cat}
+        </button>
+      ))}
+      <button onClick={() => { setShowFormTarjeta(true); setFormTarjeta({ jugador_id: '', equipo_id: '', categoria: categoriaTarjetas, amarillas: 0, rojas: 0, fecha_partido: '', motivo: '' }) }}
+        className="ml-auto bg-[#7b0a0a] text-white font-bold px-5 py-2 rounded-xl hover:bg-[#5a0808] transition">
+        + Registrar Tarjeta
+      </button>
+    </div>
+
+    {showFormTarjeta && (
+      <div className="bg-white rounded-xl shadow p-6 mb-6 border-l-4 border-yellow-400">
+        <h2 className="font-black text-gray-800 text-lg mb-4">➕ Registrar Tarjeta</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm font-semibold text-gray-600 mb-1 block">Categoría</label>
+            <select value={formTarjeta.categoria}
+              onChange={e => setFormTarjeta({ ...formTarjeta, categoria: e.target.value, equipo_id: '', jugador_id: '' })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+              <option value="LIBRE">Libre</option>
+              <option value="MASTER">Máster</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-semibold text-gray-600 mb-1 block">Equipo</label>
+            <select value={formTarjeta.equipo_id}
+              onChange={e => { setFormTarjeta({ ...formTarjeta, equipo_id: e.target.value, jugador_id: '' }); cargarJugadoresTarjetaEquipo(e.target.value) }}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+              <option value="">Selecciona equipo</option>
+              {equipos.filter(e => e.categoria === formTarjeta.categoria).map(e => (
+                <option key={e.id} value={e.id}>{e.nombre}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-semibold text-gray-600 mb-1 block">Jugador</label>
+            <select value={formTarjeta.jugador_id}
+              onChange={e => setFormTarjeta({ ...formTarjeta, jugador_id: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              disabled={!formTarjeta.equipo_id}>
+              <option value="">Selecciona jugador</option>
+              {jugadoresTarjetaEquipo.map(j => (
+                <option key={j.id} value={j.id}>{j.nombres} {j.apellidos}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-semibold text-gray-600 mb-1 block">Fecha / Partido</label>
+            <input type="text" value={formTarjeta.fecha_partido}
+              onChange={e => setFormTarjeta({ ...formTarjeta, fecha_partido: e.target.value })}
+              placeholder="Ej: Fecha 3"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+          </div>
+          <div>
+            <label className="text-sm font-semibold text-gray-600 mb-1 block">🟨 Amarillas en este partido</label>
+            <input type="number" min={0} max={2} value={formTarjeta.amarillas}
+              onChange={e => setFormTarjeta({ ...formTarjeta, amarillas: parseInt(e.target.value) || 0 })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+            {formTarjeta.amarillas >= 2 && <p className="text-red-500 text-xs mt-1">⚠️ 2 amarillas = Roja automática</p>}
+          </div>
+          <div>
+            <label className="text-sm font-semibold text-gray-600 mb-1 block">🟥 Rojas directas en este partido</label>
+            <input type="number" min={0} max={1} value={formTarjeta.rojas}
+              onChange={e => setFormTarjeta({ ...formTarjeta, rojas: parseInt(e.target.value) || 0 })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+          </div>
+          <div className="md:col-span-2">
+            <label className="text-sm font-semibold text-gray-600 mb-1 block">Motivo (opcional)</label>
+            <input type="text" value={formTarjeta.motivo}
+              onChange={e => setFormTarjeta({ ...formTarjeta, motivo: e.target.value })}
+              placeholder="Ej: Falta grave, Protestas..."
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+          </div>
+        </div>
+        <div className="flex gap-3 mt-4">
+          <button onClick={handleRegistrarTarjeta}
+            className="bg-[#7b0a0a] text-white font-bold px-6 py-2 rounded-lg hover:bg-[#5a0808] transition">
+            Registrar Tarjeta
+          </button>
+          <button onClick={() => setShowFormTarjeta(false)}
+            className="bg-gray-200 text-gray-700 font-bold px-6 py-2 rounded-lg hover:bg-gray-300 transition">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    )}
+
+    <div className="bg-white rounded-xl shadow overflow-hidden">
+      <table className="w-full text-sm">
+        <thead className="bg-[#7b0a0a] text-white">
+          <tr>
+            <th className="px-4 py-3 text-left font-black">Jugador</th>
+            <th className="px-4 py-3 text-left font-black">Equipo</th>
+            <th className="px-4 py-3 text-center font-black">🟨 Total</th>
+            <th className="px-4 py-3 text-center font-black">🟥 Total</th>
+            <th className="px-4 py-3 text-center font-black">Estado</th>
+            <th className="px-4 py-3 text-center font-black">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {tarjetas.filter(t => t.categoria === categoriaTarjetas).length === 0 ? (
+            <tr><td colSpan={6} className="text-center py-10 text-gray-400">No hay tarjetas registradas aún</td></tr>
+          ) : (
+            tarjetas.filter(t => t.categoria === categoriaTarjetas)
+              .sort((a, b) => b.amarillas - a.amarillas)
+              .map((t, i) => (
+                <tr key={t.id} className={`${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${t.suspendido ? 'border-l-4 border-red-500' : ''}`}>
+                  <td className="px-4 py-3 font-bold text-gray-800">{t.jugadores?.nombres} {t.jugadores?.apellidos}</td>
+                  <td className="px-4 py-3 text-gray-600">{t.equipos?.nombre}</td>
+                  <td className="px-4 py-3 text-center">
+                    <span className="font-black text-yellow-500 text-lg">{t.amarillas}</span>
+                    {t.amarillas_restantes !== undefined && (
+                      <span className="text-xs text-gray-400 ml-1">({t.amarillas_restantes} activas)</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-center font-black text-red-500 text-lg">{t.rojas}</td>
+                  <td className="px-4 py-3 text-center">
+                    {t.suspendido ? (
+                      <span className="bg-red-100 text-red-700 font-black px-3 py-1 rounded-full text-xs">🚫 SUSPENDIDO</span>
+                    ) : (t.amarillas_restantes || 0) >= 2 ? (
+                      <span className="bg-yellow-100 text-yellow-700 font-bold px-3 py-1 rounded-full text-xs">⚠️ EN RIESGO</span>
+                    ) : (
+                      <span className="bg-green-100 text-green-700 font-bold px-3 py-1 rounded-full text-xs">✅ HABILITADO</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <div className="flex gap-1 justify-center flex-wrap">
+                      {t.suspendido && (
+                        <button onClick={() => handleLevantarSuspension(t)}
+                          className="bg-green-500 text-white px-2 py-1 rounded text-xs font-bold hover:bg-green-600 transition">
+                          ✅ Levantar
+                        </button>
+                      )}
+                      <button onClick={() => handleEliminarTarjeta(t.id)}
+                        className="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold hover:bg-red-600 transition">
+                        🗑️
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  </div>
+)}
+
       {/* MODAL DESCUENTOS */}
 {showDescuentos && equipoDescuento && (
   <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => { setShowDescuentos(null); setShowFormDescuento(false) }}>
