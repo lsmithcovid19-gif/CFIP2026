@@ -354,7 +354,17 @@ export default function AdminPage() {
     return coincideBusqueda && coincideCategoria
   })
 
-  const tablaFiltrada = tabla.filter(t => t.categoria === categoriaTabla).sort((a, b) => b.puntos - a.puntos || (b.gf - b.gc) - (a.gf - a.gc))
+  const tablaFiltrada = tabla
+  .filter(t => t.categoria === categoriaTabla)
+  .sort((a, b) => {
+    const totalA = (a.puntos || 0) - (a.pts_descontados || 0)
+    const totalB = (b.puntos || 0) - (b.pts_descontados || 0)
+    if (totalB !== totalA) return totalB - totalA
+    const dgA = (a.gf || 0) - (a.gc || 0)
+    const dgB = (b.gf || 0) - (b.gc || 0)
+    if (dgB !== dgA) return dgB - dgA
+    return (b.gf || 0) - (a.gf || 0)
+  })
 
   const secciones = [
     { id: 'equipos', label: '🏅 Equipos', count: equipos.length },

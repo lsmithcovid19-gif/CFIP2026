@@ -581,7 +581,15 @@ const ocultarDNI = (dni: string) => {
                 ) : (
                   tablaData
                     .filter(t => t.categoria === categoriaTabla)
-                    .sort((a, b) => b.puntos - a.puntos)
+                    .sort((a, b) => {
+                      const totalA = (a.puntos || 0) - (a.pts_descontados || 0)
+                      const totalB = (b.puntos || 0) - (b.pts_descontados || 0)
+                      if (totalB !== totalA) return totalB - totalA
+                      const dgA = (a.gf || 0) - (a.gc || 0)
+                      const dgB = (b.gf || 0) - (b.gc || 0)
+                      if (dgB !== dgA) return dgB - dgA
+                      return (b.gf || 0) - (a.gf || 0)
+                    })
                     .map((t, i) => (
                       <tr key={t.id} className={i % 2 === 0 ? 'bg-[#1a0000]' : 'bg-[#2a0000]'}>
                         <td className="px-3 py-3 text-center font-bold text-[#c9a227]">{i + 1}</td>
