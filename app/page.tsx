@@ -41,6 +41,8 @@ export default function HomePage() {
   const [descuentosData, setDescuentosData] = useState<any[]>([])
   const [showDescuentosPublico, setShowDescuentosPublico] = useState<string | null>(null)
   const [equipoDescuentoPublico, setEquipoDescuentoPublico] = useState<any>(null)
+  const [goleadoresData, setGoleadoresData] = useState<any[]>([])
+  const [categoriaGoleadores, setCategoriaGoleadores] = useState('LIBRE')
 
 useEffect(() => {
   const rol = localStorage.getItem('rol')
@@ -145,6 +147,13 @@ const handleCerrarSesion = () => {
 
     const { data: tabla } = await supabase.from('tabla_puntajes').select('*, equipos(nombre)').order('puntos', { ascending: false })
     setTablaData(tabla || [])
+
+    // Goleadores
+    const { data: goles } = await supabase
+      .from('goleadores')
+      .select('*, jugadores(nombres, apellidos), equipos(nombre)')
+      .order('goles', { ascending: false })
+    setGoleadoresData(goles || [])
   }
   cargarDatos()
 }, [])
@@ -183,6 +192,7 @@ const ocultarDNI = (dni: string) => {
         { id: 'bases', label: 'Bases' },
         { id: 'fixture', label: 'Fixture' },
         { id: 'tabla', label: 'Tabla' },
+        { id: 'goleadores', label: 'Goleadores' },
         { id: 'contacto', label: 'Contacto' },
       ].map(item => (
         <button key={item.id} onClick={() => scrollTo(item.id)}
@@ -667,6 +677,56 @@ const ocultarDNI = (dni: string) => {
           </div>
         </div>
       </section>
+
+      {/* TABLA DE GOLEADORES */}
+<section id="goleadores" className="py-20 relative overflow-hidden" style={{background: 'linear-gradient(135deg, #1a0000 0%, #3d0000 50%, #1a0000 100%)'}}>
+  <div className="absolute inset-0 opacity-20" style={{backgroundImage: 'radial-gradient(circle at 20px 20px, #c9a227 2px, transparent 2px)', backgroundSize: '40px 40px'}}></div>
+  <div className="max-w-5xl mx-auto px-4 relative z-10">
+    <div className="text-center mb-12">
+      <p className="text-[#c9a227] font-bold tracking-widest text-sm uppercase mb-2">Estadísticas</p>
+      <h2 className="text-4xl font-black text-white">TABLA DE GOLEADORES</h2>
+      <div className="w-24 h-1 bg-[#c9a227] mx-auto mt-4"></div>
+    </div>
+
+    <div className="flex justify-center gap-3 mb-6">
+      {['LIBRE', 'MASTER'].map(cat => (
+        <button key={cat} onClick={() => setCategoriaGoleadores(cat)}
+          className={`px-5 py-2 rounded-full font-bold text-sm transition ${categoriaGoleadores === cat ? 'bg-[#c9a227] text-black' : 'bg-[#2a0000] text-white border border-[#c9a227]/30 hover:bg-[#3a0000]'}`}>
+          {cat === 'MASTER' ? 'MÁSTER' : cat}
+        </button>
+      ))}
+    </div>
+
+    <div className="bg-[#1a0000] rounded-2xl border border-[#c9a227]/30 overflow-hidden">
+      <table className="w-full text-sm">
+        <thead className="bg-[#7b0a0a]">
+          <tr>
+            <th className="px-4 py-3 text-center text-[#c9a227] font-black">#</th>
+            <th className="px-4 py-3 text-left text-[#c9a227] font-black">Jugador</th>
+            <th className="px-4 py-3 text-left text-[#c9a227] font-black">Equipo</th>
+            <th className="px-4 py-3 text-center text-[#c9a227] font-black">⚽ Goles</th>
+          </tr>
+        </thead>
+        <tbody>
+          {goleadoresData.filter(g => g.categoria === categoriaGoleadores).length === 0 ? (
+            <tr><td colSpan={4} className="text-center py-10 text-white/40">No hay goleadores registrados aún</td></tr>
+          ) : (
+            goleadoresData
+              .filter(g => g.categoria === categoriaGoleadores)
+              .map((g, i) => (
+                <tr key={g.id} className={i % 2 === 0 ? 'bg-[#1a0000]' : 'bg-[#2a0000]'}>
+                  <td className="px-4 py-3 text-center font-bold text-[#c9a227]">{i + 1}</td>
+                  <td className="px-4 py-3 font-bold text-white">{g.jugadores?.nombres} {g.jugadores?.apellidos}</td>
+                  <td className="px-4 py-3 text-white/70">{g.equipos?.nombre}</td>
+                  <td className="px-4 py-3 text-center font-black text-[#c9a227] text-lg">{g.goles}</td>
+                </tr>
+              ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
 
       {/* CONTACTO + FOOTER CON FOTO COMPLETA */}
 <section id="contacto" className="relative overflow-hidden">
