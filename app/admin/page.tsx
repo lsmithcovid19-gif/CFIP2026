@@ -48,6 +48,8 @@ export default function AdminPage() {
   const [busqueda, setBusqueda] = useState('')
   const [categoriaFiltro, setCategoriaFiltro] = useState('TODOS')
   const [categoriaTabla, setCategoriaTabla] = useState('LIBRE')
+  const [tablaR2, setTablaR2] = useState<PuntajeEquipo[]>([])
+  const [vistaTabla, setVistaTabla] = useState<'r1' | 'r2' | 'acumulado'>('r2')
   const [form, setForm] = useState({ nombre: '', colegio: '', categoria: 'LIBRE' })
   const [subiendoPDF, setSubiendoPDF] = useState(false)
   const [subiendoFixture, setSubiendoFixture] = useState(false)
@@ -82,7 +84,7 @@ export default function AdminPage() {
   }, [])
 
   const cargarTodo = async () => {
-    await Promise.all([cargarEquipos(), cargarFixture(), cargarTabla(), cargarBases(), cargarGoleadores(), cargarTarjetas()])
+    await Promise.all([cargarEquipos(), cargarFixture(), cargarTabla(), cargarBases(), cargarGoleadores(), cargarTarjetas(), cargarTablaR2()])
     setLoading(false)
   }
 
@@ -107,6 +109,17 @@ export default function AdminPage() {
     }
     const { data: desc } = await supabase.from('descuentos').select('*').order('created_at', { ascending: false })
     setDescuentos(desc || [])
+  }
+
+  const cargarTablaR2 = async () => {
+    const { data } = await supabase.from('tabla_puntajes_r2').select('*, equipos(nombre)').order('puntos', { ascending: false })
+    if (data) {
+      const conNombres = data.map((p: any) => ({
+        ...p,
+        equipo_nombre: p.equipos?.nombre || 'Equipo eliminado'
+      }))
+      setTablaR2(conNombres)
+    }
   }
 
   const cargarGoleadores = async () => {
@@ -363,6 +376,51 @@ const handleEliminarTarjeta = async (id: string) => {
     setEditandoPuntaje(null)
     await cargarTabla()
   }
+
+  const handleGuardarPuntajeR2 = async () => {
+  if (!editandoPuntaje) return
+  const puntos = editandoPuntaje.pg * 3 + editandoPuntaje.pe * 2 + editandoPuntaje.pp * 1
+
+  const datos = {
+    equipo_id: editandoPuntaje.equipo_id,
+    categoria: editandoPuntaje.categoria,
+    pj: editandoPuntaje.pj,
+    pg: editandoPuntaje.pg,
+    pe: editandoPuntaje.pe,
+    pp: editandoPuntaje.pp,
+    gf: editandoPuntaje.gf,
+    gc: editandoPuntaje.gc,
+    wo: editandoPuntaje.wo || 0,
+    puntos,
+  }
+
+  if (editandoPuntaje.id) {
+    const { error } = await supabase.from('tabla_puntajes_r2').update(datos).eq('id', editandoPuntaje.id)
+    if (error) { alert('Error: ' + error.message); return }
+  } else {
+    const { error } = await supabase.from('tabla_puntajes_r2').insert(datos)
+    if (error) { alert('Error: ' + error.message); return }
+  }
+  setEditandoPuntaje(null)
+  await cargarTablaR2()
+}
+
+const handleAgregarEquipoTablaR2 = async (equipo: any) => {
+  const existe = tablaR2.find(t => t.equipo_id === equipo.id)
+  if (existe) { alert('Este equipo ya está en la tabla R2'); return }
+  await supabase.from('tabla_puntajes_r2').insert({
+    equipo_id: equipo.id,
+    categoria: equipo.categoria,
+    pj: 0, pg: 0, pe: 0, pp: 0, gf: 0, gc: 0, wo: 0, puntos: 0, pts_descontados: 0
+  })
+  cargarTablaR2()
+}
+
+const handleEliminarPuntajeR2 = async (id: string) => {
+  if (!confirm('¿Eliminar este equipo de la tabla R2?')) return
+  await supabase.from('tabla_puntajes_r2').delete().eq('id', id)
+  cargarTablaR2()
+}
 
   const handleAgregarDescuento = async () => {
     if (
@@ -702,117 +760,267 @@ const handleEliminarTarjeta = async (id: string) => {
         {/* ===== TABLA DE PUNTAJES ===== */}
         {seccionActiva === 'tabla' && (
           <div>
-            <div className="flex gap-3 mb-6">
-              {['LIBRE', 'MASTER'].map(cat => (
-                <button key={cat} onClick={() => setCategoriaTabla(cat)}
-                  className={`px-5 py-2 rounded-xl font-bold text-sm transition ${categoriaTabla === cat ? 'bg-[#7b0a0a] text-white' : 'bg-white text-gray-700'}`}>
-                  {cat === 'MASTER' ? 'MÁSTER' : cat}
+            {/* PESTAÑAS */}
+            <div className="flex gap-2 mb-6 flex-wrap">
+              {[
+                { id: 'r1', label: '1ra Rueda 🔒', locked: true },
+                { id: 'r2', label: '2da Rueda ✏️', locked: false },
+                { id: 'acumulado', label: '📊 Acumulado', locked: true },
+              ].map(v => (
+                <button key={v.id} onClick={() => setVistaTabla(v.id as any)}
+                  className={`px-5 py-2 rounded-xl font-bold text-sm transition ${vistaTabla === v.id ? 'bg-[#7b0a0a] text-white' : 'bg-white text-gray-700'}`}>
+                  {v.label}
                 </button>
               ))}
-            </div>
-
-            {/* Agregar equipo a tabla */}
-            <div className="bg-white rounded-xl shadow p-4 mb-4 border-l-4 border-[#c9a227]">
-              <p className="font-bold text-gray-700 mb-3 text-sm">Agregar equipo a la tabla:</p>
-              <div className="flex flex-wrap gap-2">
-                {equipos.filter(e => e.categoria === categoriaTabla && !tabla.find(t => t.equipo_id === e.id)).map(e => (
-                  <button key={e.id} onClick={() => handleAgregarEquipoTabla(e)}
-                    className="bg-gray-100 hover:bg-[#c9a227] text-gray-700 hover:text-black px-3 py-1 rounded-lg text-sm font-semibold transition">
-                    + {e.nombre}
+              <div className="flex gap-2 ml-auto">
+                {['LIBRE', 'MASTER'].map(cat => (
+                  <button key={cat} onClick={() => setCategoriaTabla(cat)}
+                    className={`px-4 py-2 rounded-xl font-bold text-sm transition ${categoriaTabla === cat ? 'bg-[#c9a227] text-black' : 'bg-white text-gray-700'}`}>
+                    {cat === 'MASTER' ? 'MÁSTER' : cat}
                   </button>
                 ))}
               </div>
             </div>
 
-            {editandoPuntaje && (
-              <div className="bg-white rounded-xl shadow p-6 mb-4 border-l-4 border-[#7b0a0a]">
-                <h3 className="font-black text-gray-800 mb-4">Editar: {editandoPuntaje.equipo_nombre}</h3>
-                <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-                  {[
-                    { label: 'PJ', key: 'pj' },
-                    { label: 'PG', key: 'pg' },
-                    { label: 'PE', key: 'pe' },
-                    { label: 'PP', key: 'pp' },
-                    { label: 'GF', key: 'gf' },
-                    { label: 'GC', key: 'gc' },
-                    { label: 'WO', key: 'wo' },
-                  ].map(({ label, key }) => (
-                    <div key={key}>
-                      <label className="text-xs font-bold text-gray-500 mb-1 block">{label}</label>
-                      <input type="number" min={0}
-                        value={(editandoPuntaje as any)[key]}
-                        onChange={e => setEditandoPuntaje({ ...editandoPuntaje, [key]: parseInt(e.target.value) || 0 })}
-                        className="w-full border border-gray-300 rounded-lg px-2 py-2 text-center font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7b0a0a]" />
-                    </div>
-                  ))}
-                </div>
-                <div className="flex gap-3 mt-4">
-                  <button onClick={handleGuardarPuntaje}
-                    className="bg-[#7b0a0a] text-white font-bold px-6 py-2 rounded-lg hover:bg-[#5a0808] transition">
-                    Guardar
-                  </button>
-                  <button onClick={() => setEditandoPuntaje(null)}
-                    className="bg-gray-200 text-gray-700 font-bold px-6 py-2 rounded-lg hover:bg-gray-300 transition">
-                    Cancelar
-                  </button>
+            {/* AVISO R1 BLOQUEADA */}
+            {vistaTabla === 'r1' && (
+              <div className="bg-yellow-50 border border-yellow-300 rounded-xl p-4 mb-4 flex items-center gap-3">
+                <span className="text-2xl">🔒</span>
+                <p className="text-yellow-800 font-semibold text-sm">La 1ra Rueda está bloqueada y no puede editarse.</p>
+              </div>
+            )}
+
+            {/* TABLA R1 - SOLO LECTURA */}
+            {vistaTabla === 'r1' && (
+              <div>
+                <div className="bg-white rounded-xl shadow overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-[#7b0a0a] text-white">
+                      <tr>
+                        {['#', 'Equipo', 'PJ', 'PG', 'PE', 'PP', 'WO', 'GF', 'GC', 'DG', 'Pts', '-Pts', 'Total'].map(h => (
+                          <th key={h} className={`px-3 py-3 text-center font-black ${h === '-Pts' ? 'text-orange-300' : h === 'Total' ? 'text-yellow-300' : ''}`}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tabla.filter(t => t.categoria === categoriaTabla).length === 0 ? (
+                        <tr><td colSpan={13} className="text-center py-10 text-gray-400">No hay datos</td></tr>
+                      ) : (
+                        tabla
+                          .filter(t => t.categoria === categoriaTabla)
+                          .sort((a, b) => {
+                            const totalA = (a.puntos || 0) - (a.pts_descontados || 0)
+                            const totalB = (b.puntos || 0) - (b.pts_descontados || 0)
+                            if (totalB !== totalA) return totalB - totalA
+                            const dgA = (a.gf || 0) - (a.gc || 0)
+                            const dgB = (b.gf || 0) - (b.gc || 0)
+                            if (dgB !== dgA) return dgB - dgA
+                            return (b.gf || 0) - (a.gf || 0)
+                          })
+                          .map((t, i) => (
+                            <tr key={t.equipo_id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                              <td className="px-3 py-3 text-center font-bold text-[#7b0a0a]">{i + 1}</td>
+                              <td className="px-3 py-3 font-bold text-gray-800">{t.equipo_nombre}</td>
+                              <td className="px-3 py-3 text-center text-gray-800">{t.pj}</td>
+                              <td className="px-3 py-3 text-center text-green-600 font-semibold">{t.pg}</td>
+                              <td className="px-3 py-3 text-center text-yellow-600 font-semibold">{t.pe}</td>
+                              <td className="px-3 py-3 text-center text-red-600 font-semibold">{t.pp}</td>
+                              <td className="px-3 py-3 text-center text-purple-600 font-semibold">{t.wo || 0}</td>
+                              <td className="px-3 py-3 text-center text-gray-800">{t.gf}</td>
+                              <td className="px-3 py-3 text-center text-gray-800">{t.gc}</td>
+                              <td className="px-3 py-3 text-center text-gray-800">{(t.gf || 0) - (t.gc || 0)}</td>
+                              <td className="px-3 py-3 text-center font-black text-[#7b0a0a]">{t.puntos}</td>
+                              <td className="px-3 py-3 text-center text-orange-500 font-bold">{t.pts_descontados || 0}</td>
+                              <td className="px-3 py-3 text-center font-black text-yellow-600">{(t.puntos || 0) - (t.pts_descontados || 0)}</td>
+                            </tr>
+                          ))
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}
 
-            <div className="bg-white rounded-xl shadow overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-[#7b0a0a] text-white">
-                  <tr>
-                    {['#', 'Equipo', 'PJ', 'PG', 'PE', 'PP', 'WO', 'GF', 'GC', 'DG', 'Pts', 'PD', 'Total', ''].map(h => (
-                      <th key={h} className={`px-3 py-3 text-center font-black ${h === 'PD' ? 'text-orange-300' : h === 'Total' ? 'text-yellow-300' : ''}`}>{h}</th>
+            {/* TABLA R2 - EDITABLE */}
+            {vistaTabla === 'r2' && (
+              <div>
+                {/* Agregar equipo a R2 */}
+                <div className="bg-white rounded-xl shadow p-4 mb-4 border-l-4 border-[#c9a227]">
+                  <p className="font-bold text-gray-700 mb-3 text-sm">Agregar equipo a la 2da Rueda:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {equipos.filter(e => e.categoria === categoriaTabla && !tablaR2.find(t => t.equipo_id === e.id)).map(e => (
+                      <button key={e.id} onClick={() => handleAgregarEquipoTablaR2(e)}
+                        className="bg-gray-100 hover:bg-[#c9a227] text-gray-700 hover:text-black px-3 py-1 rounded-lg text-sm font-semibold transition">
+                        + {e.nombre}
+                      </button>
                     ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {tablaFiltrada.length === 0 ? (
-                    <tr><td colSpan={11} className="text-center py-10 text-gray-400">No hay equipos en la tabla aún</td></tr>
-                  ) : (
-                    tablaFiltrada.map((t, i) => (
-                      <tr key={t.equipo_id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        <td className="px-3 py-3 text-center font-bold text-[#7b0a0a]">{i + 1}</td>
-                        <td className="px-3 py-3 font-bold text-gray-800">{t.equipo_nombre}</td>
-                        <td className="px-3 py-3 text-center text-gray-800 font-semibold">{t.pj}</td>
-                        <td className="px-3 py-3 text-center text-green-600 font-semibold">{t.pg}</td>
-                        <td className="px-3 py-3 text-center text-yellow-600 font-semibold">{t.pe}</td>
-                        <td className="px-3 py-3 text-center text-red-600 font-semibold">{t.pp}</td>
-                        <td className="px-3 py-3 text-center text-purple-600 font-semibold">{t.wo || 0}</td>
-                        <td className="px-3 py-3 text-center text-gray-800 font-semibold">{t.gf}</td>
-                        <td className="px-3 py-3 text-center text-gray-800 font-semibold">{t.gc}</td>
-                        <td className="px-3 py-3 text-center text-gray-800 font-semibold">{t.gf - t.gc}</td>
-                        <td className="px-3 py-3 text-center font-black text-[#7b0a0a] text-base">{t.puntos}</td>
-                        <td className="px-3 py-3 text-center">
-                          <button
-                            onClick={() => { setEquipoDescuento(t); setShowDescuentos(t.equipo_id) }}
-                            className="bg-orange-500 hover:bg-orange-600 text-white px-2 py-1 rounded text-xs font-bold transition">
-                            {t.pts_descontados > 0 ? `-${t.pts_descontados}` : '0'}
-                          </button>
-                        </td>
-                        <td className="px-3 py-3 text-center font-black text-yellow-600 text-base">
-                          {(t.puntos || 0) - (t.pts_descontados || 0)}
-                        </td>
-                        <td className="px-3 py-3 text-center">
-                          <div className="flex gap-1 justify-center">
-                            <button onClick={() => setEditandoPuntaje(t)}
-                              className="bg-[#c9a227] text-black px-2 py-1 rounded text-xs font-bold hover:bg-yellow-400 transition">
-                              Editar
-                            </button>
-                            <button onClick={() => handleEliminarPuntaje(t.id!)}
-                              className="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold hover:bg-red-600 transition">
-                              Eliminar
-                            </button>
-                          </div>
-                        </td>
+                  </div>
+                </div>
+
+                {editandoPuntaje && (
+                  <div className="bg-white rounded-xl shadow p-6 mb-4 border-l-4 border-[#7b0a0a]">
+                    <h3 className="font-black text-gray-800 mb-4">✏️ Editar: {editandoPuntaje.equipo_nombre}</h3>
+                    <div className="grid grid-cols-3 md:grid-cols-7 gap-3">
+                      {[
+                        { label: 'PJ', key: 'pj' },
+                        { label: 'PG', key: 'pg' },
+                        { label: 'PE', key: 'pe' },
+                        { label: 'PP', key: 'pp' },
+                        { label: 'GF', key: 'gf' },
+                        { label: 'GC', key: 'gc' },
+                        { label: 'WO', key: 'wo' },
+                      ].map(({ label, key }) => (
+                        <div key={key}>
+                          <label className="text-xs font-bold text-gray-500 mb-1 block">{label}</label>
+                          <input type="number" min={0}
+                            value={(editandoPuntaje as any)[key] || 0}
+                            onChange={e => setEditandoPuntaje({ ...editandoPuntaje, [key]: parseInt(e.target.value) || 0 })}
+                            className="w-full border border-gray-300 rounded-lg px-2 py-2 text-center font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7b0a0a]" />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex gap-3 mt-4">
+                      <button onClick={handleGuardarPuntajeR2}
+                        className="bg-[#7b0a0a] text-white font-bold px-6 py-2 rounded-lg hover:bg-[#5a0808] transition">
+                        Guardar
+                      </button>
+                      <button onClick={() => setEditandoPuntaje(null)}
+                        className="bg-gray-200 text-gray-700 font-bold px-6 py-2 rounded-lg hover:bg-gray-300 transition">
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-white rounded-xl shadow overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-[#7b0a0a] text-white">
+                      <tr>
+                        {['#', 'Equipo', 'PJ', 'PG', 'PE', 'PP', 'WO', 'GF', 'GC', 'DG', 'Pts', ''].map(h => (
+                          <th key={h} className="px-3 py-3 text-center font-black">{h}</th>
+                        ))}
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    </thead>
+                    <tbody>
+                      {tablaR2.filter(t => t.categoria === categoriaTabla).length === 0 ? (
+                        <tr><td colSpan={12} className="text-center py-10 text-gray-400">No hay equipos en la 2da Rueda aún</td></tr>
+                      ) : (
+                        tablaR2
+                          .filter(t => t.categoria === categoriaTabla)
+                          .sort((a, b) => {
+                            const totalA = (a.puntos || 0) - (a.pts_descontados || 0)
+                            const totalB = (b.puntos || 0) - (b.pts_descontados || 0)
+                            if (totalB !== totalA) return totalB - totalA
+                            const dgA = (a.gf || 0) - (a.gc || 0)
+                            const dgB = (b.gf || 0) - (b.gc || 0)
+                            if (dgB !== dgA) return dgB - dgA
+                            return (b.gf || 0) - (a.gf || 0)
+                          })
+                          .map((t, i) => (
+                            <tr key={t.equipo_id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                              <td className="px-3 py-3 text-center font-bold text-[#7b0a0a]">{i + 1}</td>
+                              <td className="px-3 py-3 font-bold text-gray-800">{t.equipo_nombre}</td>
+                              <td className="px-3 py-3 text-center text-gray-800">{t.pj}</td>
+                              <td className="px-3 py-3 text-center text-green-600 font-semibold">{t.pg}</td>
+                              <td className="px-3 py-3 text-center text-yellow-600 font-semibold">{t.pe}</td>
+                              <td className="px-3 py-3 text-center text-red-600 font-semibold">{t.pp}</td>
+                              <td className="px-3 py-3 text-center text-purple-600 font-semibold">{t.wo || 0}</td>
+                              <td className="px-3 py-3 text-center text-gray-800">{t.gf}</td>
+                              <td className="px-3 py-3 text-center text-gray-800">{t.gc}</td>
+                              <td className="px-3 py-3 text-center text-gray-800">{(t.gf || 0) - (t.gc || 0)}</td>
+                              <td className="px-3 py-3 text-center font-black text-[#7b0a0a]">{t.puntos}</td>
+                              <td className="px-3 py-3 text-center">
+                                <div className="flex gap-1 justify-center">
+                                  <button onClick={() => setEditandoPuntaje(t)}
+                                    className="bg-[#c9a227] text-black px-2 py-1 rounded text-xs font-bold hover:bg-yellow-400 transition">✏️</button>
+                                  <button onClick={() => handleEliminarPuntajeR2(t.id!)}
+                                    className="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold hover:bg-red-600 transition">🗑️</button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* TABLA ACUMULADO */}
+            {vistaTabla === 'acumulado' && (
+              <div>
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 flex items-center gap-3">
+                  <span className="text-2xl">📊</span>
+                  <p className="text-blue-800 font-semibold text-sm">Suma acumulada de 1ra y 2da Rueda.</p>
+                </div>
+                <div className="bg-white rounded-xl shadow overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-[#7b0a0a] text-white">
+                      <tr>
+                        {['#', 'Equipo', 'PJ', 'PG', 'PE', 'PP', 'WO', 'GF', 'GC', 'DG', 'Pts', '-Pts', 'Total'].map(h => (
+                          <th key={h} className={`px-3 py-3 text-center font-black ${h === '-Pts' ? 'text-orange-300' : h === 'Total' ? 'text-yellow-300' : ''}`}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        const acumulado = equipos
+                          .filter(e => e.categoria === categoriaTabla)
+                          .map(e => {
+                            const r1 = tabla.find(t => t.equipo_id === e.id) || { pj:0, pg:0, pe:0, pp:0, wo:0, gf:0, gc:0, puntos:0, pts_descontados:0 }
+                            const r2 = tablaR2.find(t => t.equipo_id === e.id) || { pj:0, pg:0, pe:0, pp:0, wo:0, gf:0, gc:0, puntos:0, pts_descontados:0 }
+                            return {
+                              equipo_id: e.id,
+                              equipo_nombre: e.nombre,
+                              pj: (r1.pj || 0) + (r2.pj || 0),
+                              pg: (r1.pg || 0) + (r2.pg || 0),
+                              pe: (r1.pe || 0) + (r2.pe || 0),
+                              pp: (r1.pp || 0) + (r2.pp || 0),
+                              wo: (r1.wo || 0) + (r2.wo || 0),
+                              gf: (r1.gf || 0) + (r2.gf || 0),
+                              gc: (r1.gc || 0) + (r2.gc || 0),
+                              puntos: (r1.puntos || 0) + (r2.puntos || 0),
+                              pts_descontados: (r1.pts_descontados || 0) + (r2.pts_descontados || 0),
+                            }
+                          })
+                          .filter(e => e.pj > 0 || e.puntos > 0)
+                          .sort((a, b) => {
+                            const totalA = a.puntos - a.pts_descontados
+                            const totalB = b.puntos - b.pts_descontados
+                            if (totalB !== totalA) return totalB - totalA
+                            const dgA = a.gf - a.gc
+                            const dgB = b.gf - b.gc
+                            if (dgB !== dgA) return dgB - dgA
+                            return b.gf - a.gf
+                          })
+
+                        return acumulado.length === 0 ? (
+                          <tr><td colSpan={13} className="text-center py-10 text-gray-400">No hay datos acumulados aún</td></tr>
+                        ) : (
+                          acumulado.map((t, i) => (
+                            <tr key={t.equipo_id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                              <td className="px-3 py-3 text-center font-bold text-[#7b0a0a]">{i + 1}</td>
+                              <td className="px-3 py-3 font-bold text-gray-800">{t.equipo_nombre}</td>
+                              <td className="px-3 py-3 text-center text-gray-800">{t.pj}</td>
+                              <td className="px-3 py-3 text-center text-green-600 font-semibold">{t.pg}</td>
+                              <td className="px-3 py-3 text-center text-yellow-600 font-semibold">{t.pe}</td>
+                              <td className="px-3 py-3 text-center text-red-600 font-semibold">{t.pp}</td>
+                              <td className="px-3 py-3 text-center text-purple-600 font-semibold">{t.wo}</td>
+                              <td className="px-3 py-3 text-center text-gray-800">{t.gf}</td>
+                              <td className="px-3 py-3 text-center text-gray-800">{t.gc}</td>
+                              <td className="px-3 py-3 text-center text-gray-800">{t.gf - t.gc}</td>
+                              <td className="px-3 py-3 text-center font-black text-[#7b0a0a]">{t.puntos}</td>
+                              <td className="px-3 py-3 text-center text-orange-500 font-bold">{t.pts_descontados}</td>
+                              <td className="px-3 py-3 text-center font-black text-yellow-600">{t.puntos - t.pts_descontados}</td>
+                            </tr>
+                          ))
+                        )
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
