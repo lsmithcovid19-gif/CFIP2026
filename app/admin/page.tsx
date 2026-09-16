@@ -896,8 +896,8 @@ const handleEliminarPuntajeR2 = async (id: string) => {
                   <table className="w-full text-sm">
                     <thead className="bg-[#7b0a0a] text-white">
                       <tr>
-                        {['#', 'Equipo', 'PJ', 'PG', 'PE', 'PP', 'WO', 'GF', 'GC', 'DG', 'Pts', ''].map(h => (
-                          <th key={h} className="px-3 py-3 text-center font-black">{h}</th>
+                        {['#', 'Equipo', 'PJ', 'PG', 'PE', 'PP', 'WO', 'GF', 'GC', 'DG', 'Pts', '-Pts', 'Total', ''].map(h => (
+                          <th key={h} className={`px-3 py-3 text-center font-black ${h === '-Pts' ? 'text-orange-300' : h === 'Total' ? 'text-yellow-300' : ''}`}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -929,6 +929,14 @@ const handleEliminarPuntajeR2 = async (id: string) => {
                               <td className="px-3 py-3 text-center text-gray-800">{t.gc}</td>
                               <td className="px-3 py-3 text-center text-gray-800">{(t.gf || 0) - (t.gc || 0)}</td>
                               <td className="px-3 py-3 text-center font-black text-[#7b0a0a]">{t.puntos}</td>
+                              <td className="px-3 py-3 text-center">
+                                <button
+                                  onClick={() => { setEquipoDescuento(t); setShowDescuentos(t.equipo_id) }}
+                                  className={`font-bold px-2 py-1 rounded text-xs transition ${(t.pts_descontados || 0) > 0 ? 'bg-orange-500 text-white hover:bg-orange-600' : 'text-orange-400'}`}>
+                                  {t.pts_descontados || 0}
+                                </button>
+                              </td>
+                              <td className="px-3 py-3 text-center font-black text-yellow-600">{(t.puntos || 0) - (t.pts_descontados || 0)}</td>
                               <td className="px-3 py-3 text-center">
                                 <div className="flex gap-1 justify-center">
                                   <button onClick={() => setEditandoPuntaje(t)}
