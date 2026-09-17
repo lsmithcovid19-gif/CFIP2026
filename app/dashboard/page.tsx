@@ -50,6 +50,7 @@ export default function DashboardPage() {
   const [equipoNombre, setEquipoNombre] = useState('')
   const [equipoCategoria, setEquipoCategoria] = useState('')
   const [equipoId, setEquipoId] = useState('')
+  const REGISTRO_BLOQUEADO = true // Cambiar a false para reabrir inscripciones
   const [errores, setErrores] = useState<{[key: string]: string}>({})
   const [jugadorDetalle, setJugadorDetalle] = useState<Jugador | null>(null)
 
@@ -335,14 +336,21 @@ export default function DashboardPage() {
             className="bg-[#c9a227] text-black font-bold px-4 py-2 rounded-lg hover:bg-yellow-400 transition disabled:opacity-50 text-sm">
             {descargandoMasivo ? '⏳ Generando...' : 'Descargar Todos los Carnets'}
           </button>
-          <button onClick={() => { setShowForm(true); setEditando(null); setForm(formVacio); setFotoPreview(''); setErrores({}) }}
-            className="bg-[#7b0a0a] text-white font-bold px-5 py-2 rounded-lg hover:bg-[#5a0808] transition">
-            + Agregar Jugador
-          </button>
+          {!REGISTRO_BLOQUEADO && (
+            <button onClick={() => { setShowForm(true); setEditando(null); setForm(formVacio); setFotoPreview(''); setErrores({}) }}
+              className="bg-[#7b0a0a] text-white font-bold px-5 py-2 rounded-lg hover:bg-[#5a0808] transition">
+              + Agregar Jugador
+            </button>
+          )}
+          {REGISTRO_BLOQUEADO && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg text-sm font-semibold">
+              🔒 Inscripciones cerradas
+            </div>
+          )}
         </div>
 
         {/* FORMULARIO */}
-        {showForm && (
+        {showForm && !REGISTRO_BLOQUEADO && (
           <div className="bg-white rounded-xl shadow-lg p-6 mb-6 border-l-4 border-[#c9a227]">
             <h2 className="font-black text-gray-800 text-lg mb-4">
               {editando ? 'Editar Datos del Jugador' : '➕ Nuevo Jugador'}
@@ -489,10 +497,12 @@ export default function DashboardPage() {
                 ))}
               </div>
               <div className="flex gap-2 flex-wrap">
-                <button onClick={() => { handleEditar(jugadorDetalle); setJugadorDetalle(null) }}
-                  className="bg-[#c9a227] text-black font-bold px-4 py-2 rounded-lg text-sm hover:bg-yellow-400 transition">
-                  Editar Datos
-                </button>
+                {!REGISTRO_BLOQUEADO && (
+                  <button onClick={() => { handleEditar(jugadorDetalle); setJugadorDetalle(null) }}
+                    className="bg-[#c9a227] text-black font-bold px-4 py-2 rounded-lg text-sm hover:bg-yellow-400 transition">
+                    Editar
+                  </button>
+                )}
                 <button onClick={() => generarCarnet({
                   id: jugadorDetalle.id, dni: jugadorDetalle.dni, nombres: jugadorDetalle.nombres,
                   apellidos: jugadorDetalle.apellidos, fecha_nacimiento: jugadorDetalle.fecha_nacimiento,
@@ -515,10 +525,12 @@ export default function DashboardPage() {
                   className="bg-green-600 text-white font-bold px-4 py-2 rounded-lg text-sm hover:bg-green-700 transition">
                   Descargar Ficha
                 </button>
-                <button onClick={() => { if (confirm('¿Eliminar este jugador?')) { handleEliminar(jugadorDetalle.id); setJugadorDetalle(null) } }}
-                  className="bg-red-500 text-white font-bold px-4 py-2 rounded-lg text-sm hover:bg-red-600 transition">
-                  Eliminar Jugador
-                </button>
+                {!REGISTRO_BLOQUEADO && (
+                    <button onClick={() => { if (confirm('¿Eliminar este jugador?')) { handleEliminar(jugadorDetalle.id); setJugadorDetalle(null) } }}
+                      className="bg-red-500 text-white font-bold px-4 py-2 rounded-lg text-sm hover:bg-red-600 transition">
+                      Eliminar
+                    </button>
+                  )}
               </div>
             </div>
           </div>
@@ -576,14 +588,18 @@ export default function DashboardPage() {
                     </td>
                     <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                       <div className="flex gap-1 justify-center">
-                    <button onClick={() => handleEditar(j)}
-                        className="bg-[#c9a227] hover:bg-yellow-500 text-black px-3 py-1.5 rounded-lg text-xs font-black transition shadow-sm">
-                        Editar
-                    </button>
-                    <button onClick={() => handleEliminar(j.id)}
-                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-black transition shadow-sm">
-                        Eliminar
-                    </button>
+                    {!REGISTRO_BLOQUEADO && (
+  <>
+                        <button onClick={() => handleEditar(j)}
+                          className="bg-[#c9a227] hover:bg-yellow-500 text-black px-3 py-1 rounded-lg text-xs font-black transition">
+                          Editar
+                        </button>
+                        <button onClick={() => handleEliminar(j.id)}
+                          className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg text-xs font-black transition">
+                          Eliminar
+                        </button>
+                      </>
+                    )}
                     <button onClick={() => generarCarnet({
                         id: j.id, dni: j.dni, nombres: j.nombres, apellidos: j.apellidos,
                         fecha_nacimiento: j.fecha_nacimiento, direccion: j.direccion,
