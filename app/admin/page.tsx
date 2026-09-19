@@ -764,7 +764,7 @@ const handleEliminarPuntajeR2 = async (id: string) => {
             <div className="flex gap-2 mb-6 flex-wrap">
               {[
                 { id: 'r1', label: '1ra Rueda 🔒', locked: true },
-                { id: 'r2', label: '2da Rueda ✏️', locked: false },
+                { id: 'r2', label: '2da Rueda Editar', locked: false },
                 { id: 'acumulado', label: '📊 Acumulado', locked: true },
               ].map(v => (
                 <button key={v.id} onClick={() => setVistaTabla(v.id as any)}
@@ -782,29 +782,73 @@ const handleEliminarPuntajeR2 = async (id: string) => {
               </div>
             </div>
 
-            {/* AVISO R1 BLOQUEADA */}
-            {vistaTabla === 'r1' && (
-              <div className="bg-yellow-50 border border-yellow-300 rounded-xl p-4 mb-4 flex items-center gap-3">
-                <span className="text-2xl">🔒</span>
-                <p className="text-yellow-800 font-semibold text-sm">La 1ra Rueda está bloqueada y no puede editarse.</p>
-              </div>
-            )}
-
-            {/* TABLA R1 - SOLO LECTURA */}
             {vistaTabla === 'r1' && (
               <div>
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 flex items-center gap-3">
+                  <span className="text-2xl">Editar</span>
+                  <p className="text-blue-800 font-semibold text-sm">La 1ra Rueda está desbloqueada temporalmente para correcciones.</p>
+                </div>
+
+                {/* Agregar equipo a R1 */}
+                <div className="bg-white rounded-xl shadow p-4 mb-4 border-l-4 border-[#c9a227]">
+                  <p className="font-bold text-gray-700 mb-3 text-sm">Agregar equipo a la 1ra Rueda:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {equipos.filter(e => e.categoria === categoriaTabla && !tabla.find(t => t.equipo_id === e.id)).map(e => (
+                      <button key={e.id} onClick={() => handleAgregarEquipoTabla(e)}
+                        className="bg-gray-100 hover:bg-[#c9a227] text-gray-700 hover:text-black px-3 py-1 rounded-lg text-sm font-semibold transition">
+                        + {e.nombre}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {editandoPuntaje && vistaTabla === 'r1' && (
+                  <div className="bg-white rounded-xl shadow p-6 mb-4 border-l-4 border-[#7b0a0a]">
+                    <h3 className="font-black text-gray-800 mb-4">Editar: {editandoPuntaje.equipo_nombre}</h3>
+                    <div className="grid grid-cols-3 md:grid-cols-7 gap-3">
+                      {[
+                        { label: 'PJ', key: 'pj' },
+                        { label: 'PG', key: 'pg' },
+                        { label: 'PE', key: 'pe' },
+                        { label: 'PP', key: 'pp' },
+                        { label: 'GF', key: 'gf' },
+                        { label: 'GC', key: 'gc' },
+                        { label: 'WO', key: 'wo' },
+                      ].map(({ label, key }) => (
+                        <div key={key}>
+                          <label className="text-xs font-bold text-gray-500 mb-1 block">{label}</label>
+                          <input type="number" min={0}
+                            value={(editandoPuntaje as any)[key] || 0}
+                            onChange={e => setEditandoPuntaje({ ...editandoPuntaje, [key]: parseInt(e.target.value) || 0 })}
+                            className="w-full border border-gray-300 rounded-lg px-2 py-2 text-center font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#7b0a0a]" />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex gap-3 mt-4">
+                      <button onClick={handleGuardarPuntaje}
+                        className="bg-[#7b0a0a] text-white font-bold px-6 py-2 rounded-lg hover:bg-[#5a0808] transition">
+                        Guardar
+                      </button>
+                      <button onClick={() => setEditandoPuntaje(null)}
+                        className="bg-gray-200 text-gray-700 font-bold px-6 py-2 rounded-lg hover:bg-gray-300 transition">
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="bg-white rounded-xl shadow overflow-hidden">
                   <table className="w-full text-sm">
                     <thead className="bg-[#7b0a0a] text-white">
                       <tr>
-                        {['#', 'Equipo', 'PJ', 'PG', 'PE', 'PP', 'WO', 'GF', 'GC', 'DG', 'Pts', '-Pts', 'Total'].map(h => (
+                        {['#', 'Equipo', 'PJ', 'PG', 'PE', 'PP', 'WO', 'GF', 'GC', 'DG', 'Pts', '-Pts', 'Total', ''].map(h => (
                           <th key={h} className={`px-3 py-3 text-center font-black ${h === '-Pts' ? 'text-orange-300' : h === 'Total' ? 'text-yellow-300' : ''}`}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {tabla.filter(t => t.categoria === categoriaTabla).length === 0 ? (
-                        <tr><td colSpan={13} className="text-center py-10 text-gray-400">No hay datos</td></tr>
+                        <tr><td colSpan={14} className="text-center py-10 text-gray-400">No hay datos</td></tr>
                       ) : (
                         tabla
                           .filter(t => t.categoria === categoriaTabla)
@@ -830,8 +874,21 @@ const handleEliminarPuntajeR2 = async (id: string) => {
                               <td className="px-3 py-3 text-center text-gray-800">{t.gc}</td>
                               <td className="px-3 py-3 text-center text-gray-800">{(t.gf || 0) - (t.gc || 0)}</td>
                               <td className="px-3 py-3 text-center font-black text-[#7b0a0a]">{t.puntos}</td>
-                              <td className="px-3 py-3 text-center text-orange-500 font-bold">{t.pts_descontados || 0}</td>
+                              <td className="px-3 py-3 text-center">
+                                <button onClick={() => { setEquipoDescuento(t); setShowDescuentos(t.equipo_id) }}
+                                  className={`font-bold px-2 py-1 rounded text-xs transition ${(t.pts_descontados || 0) > 0 ? 'bg-orange-500 text-white hover:bg-orange-600' : 'text-orange-400'}`}>
+                                  {t.pts_descontados || 0}
+                                </button>
+                              </td>
                               <td className="px-3 py-3 text-center font-black text-yellow-600">{(t.puntos || 0) - (t.pts_descontados || 0)}</td>
+                              <td className="px-3 py-3 text-center">
+                                <div className="flex gap-1 justify-center">
+                                  <button onClick={() => setEditandoPuntaje(t)}
+                                    className="bg-[#c9a227] text-black px-2 py-1 rounded text-xs font-bold hover:bg-yellow-400 transition">Editar</button>
+                                  <button onClick={() => handleEliminarPuntaje(t.id!)}
+                                    className="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold hover:bg-red-600 transition">Eliminar</button>
+                                </div>
+                              </td>
                             </tr>
                           ))
                       )}
@@ -859,7 +916,7 @@ const handleEliminarPuntajeR2 = async (id: string) => {
 
                 {editandoPuntaje && (
                   <div className="bg-white rounded-xl shadow p-6 mb-4 border-l-4 border-[#7b0a0a]">
-                    <h3 className="font-black text-gray-800 mb-4">✏️ Editar: {editandoPuntaje.equipo_nombre}</h3>
+                    <h3 className="font-black text-gray-800 mb-4">Editar: {editandoPuntaje.equipo_nombre}</h3>
                     <div className="grid grid-cols-3 md:grid-cols-7 gap-3">
                       {[
                         { label: 'PJ', key: 'pj' },
@@ -940,9 +997,9 @@ const handleEliminarPuntajeR2 = async (id: string) => {
                               <td className="px-3 py-3 text-center">
                                 <div className="flex gap-1 justify-center">
                                   <button onClick={() => setEditandoPuntaje(t)}
-                                    className="bg-[#c9a227] text-black px-2 py-1 rounded text-xs font-bold hover:bg-yellow-400 transition">✏️</button>
+                                    className="bg-[#c9a227] text-black px-2 py-1 rounded text-xs font-bold hover:bg-yellow-400 transition">Editar</button>
                                   <button onClick={() => handleEliminarPuntajeR2(t.id!)}
-                                    className="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold hover:bg-red-600 transition">🗑️</button>
+                                    className="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold hover:bg-red-600 transition">Eliminar</button>
                                 </div>
                               </td>
                             </tr>
@@ -1351,7 +1408,7 @@ const handleEliminarPuntajeR2 = async (id: string) => {
                       )}
                       <button onClick={() => handleEliminarTarjeta(t.id)}
                         className="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold hover:bg-red-600 transition">
-                        🗑️
+                        Eliminar
                       </button>
                     </div>
                   </td>
