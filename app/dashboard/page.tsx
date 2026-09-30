@@ -50,7 +50,7 @@ export default function DashboardPage() {
   const [equipoNombre, setEquipoNombre] = useState('')
   const [equipoCategoria, setEquipoCategoria] = useState('')
   const [equipoId, setEquipoId] = useState('')
-  const REGISTRO_BLOQUEADO = true // Cambiar a false para reabrir inscripciones
+  const REGISTRO_BLOQUEADO = false // Cambiar a false para reabrir inscripciones
   const [errores, setErrores] = useState<{[key: string]: string}>({})
   const [jugadorDetalle, setJugadorDetalle] = useState<Jugador | null>(null)
 

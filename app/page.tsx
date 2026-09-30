@@ -47,6 +47,8 @@ export default function HomePage() {
   const [tarjetasData, setTarjetasData] = useState<any[]>([])
   const [categoriaTarjetasPublico, setCategoriaTarjetasPublico] = useState('LIBRE')
   const [mostrarTodasTarjetas, setMostrarTodasTarjetas] = useState(false)
+  const [tablaR2Data, setTablaR2Data] = useState<any[]>([])
+  const [vistaTablaPublica, setVistaTablaPublica] = useState<'r1' | 'r2' | 'acumulado'>('acumulado')
 
 useEffect(() => {
   const rol = localStorage.getItem('rol')
@@ -151,6 +153,9 @@ const handleCerrarSesion = () => {
 
     const { data: tabla } = await supabase.from('tabla_puntajes').select('*, equipos(nombre)').order('puntos', { ascending: false })
     setTablaData(tabla || [])
+
+    const { data: tablaR2 } = await supabase.from('tabla_puntajes_r2').select('*, equipos(nombre)').order('puntos', { ascending: false })
+    setTablaR2Data(tablaR2 || [])
 
     // Goleadores
     const { data: goles } = await supabase
@@ -617,77 +622,128 @@ const ocultarDNI = (dni: string) => {
       </section>
 
       {/* TABLA DE PUNTAJES */}
-      <section id="tabla" className="py-20 relative overflow-hidden" style={{background: 'linear-gradient(135deg, #fff9f0 0%, #fff3dc 50%, #fff9f0 100%)'}}>
-        <div className="absolute inset-0 opacity-30" style={{backgroundImage: 'repeating-linear-gradient(45deg, #c9a227 0, #c9a227 2px, transparent 0, transparent 50%)', backgroundSize: '20px 20px'}}></div>
-        <div className="absolute inset-0 opacity-15" style={{backgroundImage: 'radial-gradient(circle, #c9a227 1px, transparent 1px)', backgroundSize: '30px 30px'}}></div>
-        <div className="max-w-5xl mx-auto px-4 relative z-10">
-          <div className="text-center mb-12">
-            <p className="text-[#a67c00] font-extrabold tracking-[0.2em] text-xl uppercase mb-2">Posiciones</p>
-            <h2 className="text-4xl font-black text-[#1a0000]">TABLA DE PUNTAJES</h2>
-            <div className="w-24 h-1 bg-[#c9a227] mx-auto mt-4"></div>
-          </div>
+        <section id="tabla" className="py-20 relative overflow-hidden" style={{background: 'linear-gradient(135deg, #fff9f0 0%, #fff3dc 50%, #fff9f0 100%)'}}>
+          <div className="absolute inset-0 opacity-30" style={{backgroundImage: 'repeating-linear-gradient(45deg, #c9a227 0, #c9a227 2px, transparent 0, transparent 50%)', backgroundSize: '20px 20px'}}></div>
+          <div className="absolute inset-0 opacity-15" style={{backgroundImage: 'radial-gradient(circle, #c9a227 1px, transparent 1px)', backgroundSize: '30px 30px'}}></div>
+          <div className="max-w-5xl mx-auto px-4 relative z-10">
+            <div className="text-center mb-12">
+              <p className="text-[#a67c00] font-extrabold tracking-[0.2em] text-xl uppercase mb-2">Posiciones</p>
+              <h2 className="text-4xl font-black text-[#1a0000]">TABLA DE PUNTAJES</h2>
+              <div className="w-24 h-1 bg-[#c9a227] mx-auto mt-4"></div>
+            </div>
 
-          <div className="flex justify-center gap-3 mb-6">
-            {['LIBRE', 'MASTER'].map(cat => (
-              <button key={cat} onClick={() => setCategoriaTabla(cat)}
-                className={`px-5 py-2 rounded-full font-bold text-sm transition ${categoriaTabla === cat ? 'bg-[#c9a227] text-black' : 'bg-white text-gray-700 border border-gray-300'}`}>
-                {cat === 'MASTER' ? 'MÁSTER' : cat}
-              </button>
-            ))}
-          </div>
+            {/* Pestañas vista */}
+            <div className="flex justify-center gap-2 mb-6 flex-wrap">
+              {[
+                { id: 'r1', label: '1ra Rueda' },
+                { id: 'r2', label: '2da Rueda' },
+                { id: 'acumulado', label: '📊 Acumulado' },
+              ].map(v => (
+                <button key={v.id} onClick={() => setVistaTablaPublica(v.id as any)}
+                  className={`px-4 py-2 rounded-full font-bold text-sm transition ${vistaTablaPublica === v.id ? 'bg-[#7b0a0a] text-white' : 'bg-white text-gray-700 border border-gray-300'}`}>
+                  {v.label}
+                </button>
+              ))}
+            </div>
 
-          <div className="bg-[#1a0000] rounded-2xl border border-[#c9a227]/30 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-[#7b0a0a]">
-                <tr>
-                  {['#', 'Equipo', 'PJ', 'PG', 'PE', 'PP', 'WO', 'GF', 'GC', 'DG', 'Pts', '-Pts', 'Total'].map(h => (
-                    <th key={h} className={`px-3 py-3 font-black text-center ${h === '-Pts' ? 'text-orange-400' : h === 'Total' ? 'text-yellow-300' : 'text-[#c9a227]'}`}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {tablaData.filter(t => t.categoria === categoriaTabla).length === 0 ? (
-                  <tr><td colSpan={10} className="text-center py-10 text-white/40">El campeonato aún no ha comenzado</td></tr>
-                ) : (
-                  tablaData
-                    .filter(t => t.categoria === categoriaTabla)
-                    .sort((a, b) => {
-                      const totalA = (a.puntos || 0) - (a.pts_descontados || 0)
-                      const totalB = (b.puntos || 0) - (b.pts_descontados || 0)
-                      if (totalB !== totalA) return totalB - totalA
-                      const dgA = (a.gf || 0) - (a.gc || 0)
-                      const dgB = (b.gf || 0) - (b.gc || 0)
-                      if (dgB !== dgA) return dgB - dgA
-                      return (b.gf || 0) - (a.gf || 0)
-                    })
-                    .map((t, i) => (
-                      <tr key={t.id} className={i % 2 === 0 ? 'bg-[#1a0000]' : 'bg-[#2a0000]'}>
-                        <td className="px-3 py-3 text-center font-bold text-[#c9a227]">{i + 1}</td>
-                        <td className="px-3 py-3 font-bold text-white">{t.equipos?.nombre || '—'}</td>
-                        <td className="px-3 py-3 text-center text-white">{t.pj}</td>
-                        <td className="px-3 py-3 text-center text-green-400 font-semibold">{t.pg}</td>
-                        <td className="px-3 py-3 text-center text-yellow-400 font-semibold">{t.pe}</td>
-                        <td className="px-3 py-3 text-center text-red-400 font-semibold">{t.pp}</td>
-                        <td className="px-3 py-3 text-center text-purple-400 font-semibold">{t.wo || 0}</td>
-                        <td className="px-3 py-3 text-center text-white">{t.gf}</td>
-                        <td className="px-3 py-3 text-center text-white">{t.gc}</td>
-                        <td className="px-3 py-3 text-center text-white">{(t.gf || 0) - (t.gc || 0)}</td>
-                        <td className="px-3 py-3 text-center font-black text-[#c9a227] text-base">{t.puntos}</td>
-                        <td className="px-3 py-3 text-center">
-                          <button onClick={() => { setEquipoDescuentoPublico(t); setShowDescuentosPublico(t.id) }}
-                            className={`font-bold px-2 py-1 rounded text-xs transition ${(t.pts_descontados || 0) > 0 ? 'bg-orange-500 text-white hover:bg-orange-600' : 'text-orange-400'}`}>
-                            {t.pts_descontados || 0}
-                          </button>
-                        </td>
-                        <td className="px-3 py-3 text-center font-black text-yellow-300 text-base">{(t.puntos || 0) - (t.pts_descontados || 0)}</td>
+            {/* Filtro categoría */}
+            <div className="flex justify-center gap-3 mb-6">
+              {['LIBRE', 'MASTER'].map(cat => (
+                <button key={cat} onClick={() => setCategoriaTabla(cat)}
+                  className={`px-5 py-2 rounded-full font-bold text-sm transition ${categoriaTabla === cat ? 'bg-[#c9a227] text-black' : 'bg-white text-gray-700 border border-gray-300'}`}>
+                  {cat === 'MASTER' ? 'MÁSTER' : cat}
+                </button>
+              ))}
+            </div>
+
+            {/* Tabla dinámica según vista */}
+            {(() => {
+              let filas: any[] = []
+
+              if (vistaTablaPublica === 'r1') {
+                filas = tablaData.filter(t => t.categoria === categoriaTabla)
+              } else if (vistaTablaPublica === 'r2') {
+                filas = tablaR2Data.filter(t => t.categoria === categoriaTabla)
+              } else {
+                // Acumulado
+                const equiposCategoria = [...new Set([
+                  ...tablaData.filter(t => t.categoria === categoriaTabla).map(t => t.equipo_id),
+                  ...tablaR2Data.filter(t => t.categoria === categoriaTabla).map(t => t.equipo_id),
+                ])]
+                filas = equiposCategoria.map(eid => {
+                  const r1 = tablaData.find(t => t.equipo_id === eid) || {}
+                  const r2 = tablaR2Data.find(t => t.equipo_id === eid) || {}
+                  const nombre = (r1 as any).equipos?.nombre || (r2 as any).equipos?.nombre || '—'
+                  return {
+                    equipo_id: eid,
+                    equipos: { nombre },
+                    pj: ((r1 as any).pj || 0) + ((r2 as any).pj || 0),
+                    pg: ((r1 as any).pg || 0) + ((r2 as any).pg || 0),
+                    pe: ((r1 as any).pe || 0) + ((r2 as any).pe || 0),
+                    pp: ((r1 as any).pp || 0) + ((r2 as any).pp || 0),
+                    wo: ((r1 as any).wo || 0) + ((r2 as any).wo || 0),
+                    gf: ((r1 as any).gf || 0) + ((r2 as any).gf || 0),
+                    gc: ((r1 as any).gc || 0) + ((r2 as any).gc || 0),
+                    puntos: ((r1 as any).puntos || 0) + ((r2 as any).puntos || 0),
+                    pts_descontados: ((r1 as any).pts_descontados || 0) + ((r2 as any).pts_descontados || 0),
+                  }
+                })
+              }
+
+              filas = filas.sort((a, b) => {
+                const totalA = (a.puntos || 0) - (a.pts_descontados || 0)
+                const totalB = (b.puntos || 0) - (b.pts_descontados || 0)
+                if (totalB !== totalA) return totalB - totalA
+                const dgA = (a.gf || 0) - (a.gc || 0)
+                const dgB = (b.gf || 0) - (b.gc || 0)
+                if (dgB !== dgA) return dgB - dgA
+                return (b.gf || 0) - (a.gf || 0)
+              })
+
+              return (
+                <div className="bg-[#1a0000] rounded-2xl border border-[#c9a227]/30 overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-[#7b0a0a]">
+                      <tr>
+                        {['#', 'Equipo', 'PJ', 'PG', 'PE', 'PP', 'WO', 'GF', 'GC', 'DG', 'Pts', '-Pts', 'Total'].map(h => (
+                          <th key={h} className={`px-3 py-3 font-black text-center ${h === '-Pts' ? 'text-orange-400' : h === 'Total' ? 'text-yellow-300' : 'text-[#c9a227]'}`}>{h}</th>
+                        ))}
                       </tr>
-                    ))
-                )}
-              </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                      {filas.length === 0 ? (
+                        <tr><td colSpan={13} className="text-center py-10 text-white/40">El campeonato aún no ha comenzado</td></tr>
+                      ) : (
+                        filas.map((t, i) => (
+                          <tr key={t.equipo_id} className={i % 2 === 0 ? 'bg-[#1a0000]' : 'bg-[#2a0000]'}>
+                            <td className="px-3 py-3 text-center font-bold text-[#c9a227]">{i + 1}</td>
+                            <td className="px-3 py-3 font-bold text-white">{t.equipos?.nombre || '—'}</td>
+                            <td className="px-3 py-3 text-center text-white">{t.pj}</td>
+                            <td className="px-3 py-3 text-center text-green-400 font-semibold">{t.pg}</td>
+                            <td className="px-3 py-3 text-center text-yellow-400 font-semibold">{t.pe}</td>
+                            <td className="px-3 py-3 text-center text-red-400 font-semibold">{t.pp}</td>
+                            <td className="px-3 py-3 text-center text-purple-400 font-semibold">{t.wo || 0}</td>
+                            <td className="px-3 py-3 text-center text-white">{t.gf}</td>
+                            <td className="px-3 py-3 text-center text-white">{t.gc}</td>
+                            <td className="px-3 py-3 text-center text-white">{(t.gf || 0) - (t.gc || 0)}</td>
+                            <td className="px-3 py-3 text-center font-black text-[#c9a227]">{t.puntos}</td>
+                            <td className="px-3 py-3 text-center">
+                              <button onClick={() => { setEquipoDescuentoPublico(t); setShowDescuentosPublico(t.equipo_id) }}
+                                className={`font-bold px-2 py-1 rounded text-xs transition ${(t.pts_descontados || 0) > 0 ? 'bg-orange-500 text-white hover:bg-orange-600 cursor-pointer' : 'text-orange-400 cursor-default'}`}>
+                                {t.pts_descontados || 0}
+                              </button>
+                            </td>
+                            <td className="px-3 py-3 text-center font-black text-yellow-300">{(t.puntos || 0) - (t.pts_descontados || 0)}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            })()}
           </div>
-        </div>
-      </section>
+        </section>
 
       {/* TABLA DE GOLEADORES */}
 <section id="goleadores" className="py-20 relative overflow-hidden" style={{background: 'linear-gradient(135deg, #1a0000 0%, #3d0000 50%, #1a0000 100%)'}}>

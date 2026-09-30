@@ -423,11 +423,7 @@ const handleEliminarPuntajeR2 = async (id: string) => {
 }
 
   const handleAgregarDescuento = async () => {
-    if (
-      !equipoDescuento ||
-      !formDescuento.motivo ||
-      formDescuento.puntos_descontados <= 0
-    ) {
+    if (!equipoDescuento || !formDescuento.motivo || formDescuento.puntos_descontados <= 0) {
       alert('Completa todos los campos')
       return
     }
@@ -440,54 +436,46 @@ const handleEliminarPuntajeR2 = async (id: string) => {
       puntos_descontados: formDescuento.puntos_descontados,
     })
 
-    // Actualizar pts_descontados en tabla_puntajes
-    const totalDesc =
-      descuentos
-        .filter(d => d.equipo_id === equipoDescuento.equipo_id)
-        .reduce((sum, d) => sum + d.puntos_descontados, 0) +
-      formDescuento.puntos_descontados
+    const { data: todosDescuentos } = await supabase
+      .from('descuentos')
+      .select('*')
+      .eq('equipo_id', equipoDescuento.equipo_id)
 
-    await supabase
-      .from('tabla_puntajes')
+    const totalDesc = (todosDescuentos || []).reduce((sum, d) => sum + d.puntos_descontados, 0)
+
+    // Actualizar en tabla R1
+    await supabase.from('tabla_puntajes')
       .update({ pts_descontados: totalDesc })
-      .eq('id', equipoDescuento.id)
+      .eq('equipo_id', equipoDescuento.equipo_id)
 
-    setFormDescuento({
-      motivo: '',
-      fecha_partido: '',
-      puntos_descontados: 0,
-    })
+    // Actualizar en tabla R2 también
+    await supabase.from('tabla_puntajes_r2')
+      .update({ pts_descontados: totalDesc })
+      .eq('equipo_id', equipoDescuento.equipo_id)
 
+    setFormDescuento({ motivo: '', fecha_partido: '', puntos_descontados: 0 })
     setShowFormDescuento(false)
     await cargarTabla()
+    await cargarTablaR2()
   }
 
   const handleEliminarDescuento = async (descuento: any) => {
     if (!confirm('¿Eliminar este descuento?')) return
+    await supabase.from('descuentos').delete().eq('id', descuento.id)
 
-    await supabase
-      .from('descuentos')
-      .delete()
-      .eq('id', descuento.id)
+    const restantes = descuentos.filter(d => d.id !== descuento.id && d.equipo_id === descuento.equipo_id)
+    const totalDesc = restantes.reduce((sum, d) => sum + d.puntos_descontados, 0)
 
-    // Recalcular pts_descontados
-    const restantes = descuentos.filter(
-      d =>
-        d.id !== descuento.id &&
-        d.equipo_id === descuento.equipo_id
-    )
+    await supabase.from('tabla_puntajes')
+      .update({ pts_descontados: totalDesc })
+      .eq('equipo_id', descuento.equipo_id)
 
-    const totalDesc = restantes.reduce(
-      (sum, d) => sum + d.puntos_descontados,
-      0
-    )
-
-    await supabase
-      .from('tabla_puntajes')
+    await supabase.from('tabla_puntajes_r2')
       .update({ pts_descontados: totalDesc })
       .eq('equipo_id', descuento.equipo_id)
 
     await cargarTabla()
+    await cargarTablaR2()
   }
 
   const handleEliminarPuntaje = async (id: string) => {
