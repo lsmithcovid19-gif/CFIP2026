@@ -869,14 +869,14 @@ const handleEliminarPuntajeR2 = async (id: string) => {
                                 </button>
                               </td>
                               <td className="px-3 py-3 text-center font-black text-yellow-600">{(t.puntos || 0) - (t.pts_descontados || 0)}</td>
-                              <td className="px-3 py-3 text-center">
+                              {/*<td className="px-3 py-3 text-center">
                                 <div className="flex gap-1 justify-center">
                                   <button onClick={() => setEditandoPuntaje(t)}
                                     className="bg-[#c9a227] text-black px-2 py-1 rounded text-xs font-bold hover:bg-yellow-400 transition">Editar</button>
                                   <button onClick={() => handleEliminarPuntaje(t.id!)}
                                     className="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold hover:bg-red-600 transition">Eliminar</button>
                                 </div>
-                              </td>
+                              </td>*/}
                             </tr>
                           ))
                       )}
@@ -982,15 +982,14 @@ const handleEliminarPuntajeR2 = async (id: string) => {
                                 </button>
                               </td>
                               <td className="px-3 py-3 text-center font-black text-yellow-600">{(t.puntos || 0) - (t.pts_descontados || 0)}</td>
-                              <td></td>
-                              {/*<td className="px-3 py-3 text-center">
+                              <td className="px-3 py-3 text-center">
                                 <div className="flex gap-1 justify-center">
                                   <button onClick={() => setEditandoPuntaje(t)}
                                     className="bg-[#c9a227] text-black px-2 py-1 rounded text-xs font-bold hover:bg-yellow-400 transition">Editar</button>
                                   <button onClick={() => handleEliminarPuntajeR2(t.id!)}
                                     className="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold hover:bg-red-600 transition">Eliminar</button>
                                 </div>
-                              </td>*/}
+                              </td>
                             </tr>
                           ))
                       )}
