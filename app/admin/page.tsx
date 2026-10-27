@@ -772,13 +772,13 @@ const handleEliminarPuntajeR2 = async (id: string) => {
 
             {vistaTabla === 'r1' && (
               <div>
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 flex items-center gap-3">
-                  <span className="text-2xl">Editar</span>
-                  <p className="text-blue-800 font-semibold text-sm">La 1ra Rueda está desbloqueada temporalmente para correcciones.</p>
+                <div className="bg-yellow-50 border border-yellow-300 rounded-xl p-4 mb-4 flex items-center gap-3">
+                  <span className="text-2xl">🔒</span>
+                  <p className="text-yellow-800 font-semibold text-sm">La 1ra Rueda está bloqueada y no puede editarse.</p>
                 </div>
 
                 {/* Agregar equipo a R1 */}
-                <div className="bg-white rounded-xl shadow p-4 mb-4 border-l-4 border-[#c9a227]">
+                {/*<div className="bg-white rounded-xl shadow p-4 mb-4 border-l-4 border-[#c9a227]">
                   <p className="font-bold text-gray-700 mb-3 text-sm">Agregar equipo a la 1ra Rueda:</p>
                   <div className="flex flex-wrap gap-2">
                     {equipos.filter(e => e.categoria === categoriaTabla && !tabla.find(t => t.equipo_id === e.id)).map(e => (
@@ -788,9 +788,9 @@ const handleEliminarPuntajeR2 = async (id: string) => {
                       </button>
                     ))}
                   </div>
-                </div>
+                </div>*/}
 
-                {editandoPuntaje && vistaTabla === 'r1' && (
+                {/*{editandoPuntaje && vistaTabla === 'r1' && (
                   <div className="bg-white rounded-xl shadow p-6 mb-4 border-l-4 border-[#7b0a0a]">
                     <h3 className="font-black text-gray-800 mb-4">Editar: {editandoPuntaje.equipo_nombre}</h3>
                     <div className="grid grid-cols-3 md:grid-cols-7 gap-3">
@@ -823,7 +823,7 @@ const handleEliminarPuntajeR2 = async (id: string) => {
                       </button>
                     </div>
                   </div>
-                )}
+                )}*/}
 
                 <div className="bg-white rounded-xl shadow overflow-hidden">
                   <table className="w-full text-sm">
@@ -982,14 +982,15 @@ const handleEliminarPuntajeR2 = async (id: string) => {
                                 </button>
                               </td>
                               <td className="px-3 py-3 text-center font-black text-yellow-600">{(t.puntos || 0) - (t.pts_descontados || 0)}</td>
-                              <td className="px-3 py-3 text-center">
+                              <td></td>
+                              {/*<td className="px-3 py-3 text-center">
                                 <div className="flex gap-1 justify-center">
                                   <button onClick={() => setEditandoPuntaje(t)}
                                     className="bg-[#c9a227] text-black px-2 py-1 rounded text-xs font-bold hover:bg-yellow-400 transition">Editar</button>
                                   <button onClick={() => handleEliminarPuntajeR2(t.id!)}
                                     className="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold hover:bg-red-600 transition">Eliminar</button>
                                 </div>
-                              </td>
+                              </td>*/}
                             </tr>
                           ))
                       )}
