@@ -37,7 +37,7 @@ interface PuntajeEquipo {
 }
 
 export default function AdminPage() {
-  const TABLA_R1_BLOQUEADA = false // true = bloqueada, false = desbloqueada
+  const TABLA_R1_BLOQUEADA = true // true = bloqueada, false = desbloqueada
   const router = useRouter()
   const [seccionActiva, setSeccionActiva] = useState('equipos')
   const [equipos, setEquipos] = useState<Equipo[]>([])
@@ -51,7 +51,6 @@ export default function AdminPage() {
   const [categoriaTabla, setCategoriaTabla] = useState('LIBRE')
   const [tablaR2, setTablaR2] = useState<PuntajeEquipo[]>([])
   const [vistaTabla, setVistaTabla] = useState<'r1' | 'r2' | 'acumulado'>('r2')
-  const [vistaTablaPublica, setVistaTablaPublica] = useState<'r1' | 'r2' | 'acumulado'>('acumulado')
   const [form, setForm] = useState({ nombre: '', colegio: '', categoria: 'LIBRE' })
   const [subiendoPDF, setSubiendoPDF] = useState(false)
   const [subiendoFixture, setSubiendoFixture] = useState(false)
