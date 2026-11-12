@@ -184,6 +184,14 @@ const ocultarDNI = (dni: string) => {
   if (!dni || dni.length < 4) return dni
   return dni.substring(0, 4) + '****'
 }
+
+const descuentosVisibles = equipoDescuentoPublico
+  ? descuentosData.filter(d =>
+      d.equipo_id === equipoDescuentoPublico.equipo_id &&
+      (vistaTablaPublica === 'acumulado' || (d.rueda || 1) === (vistaTablaPublica === 'r2' ? 2 : 1))
+    )
+  : []
+  
   return (
     <main className="min-h-screen bg-gray-950 font-sans">
 
@@ -533,10 +541,10 @@ const ocultarDNI = (dni: string) => {
       </div>
 
       <div className="space-y-2 mb-4">
-        {descuentosData.filter(d => d.equipo_id === equipoDescuentoPublico.equipo_id).length === 0 ? (
+        {descuentosVisibles.length === 0 ? (
           <p className="text-gray-400 text-center py-4">No hay descuentos registrados</p>
         ) : (
-          descuentosData.filter(d => d.equipo_id === equipoDescuentoPublico.equipo_id).map(d => (
+          descuentosVisibles.map(d => (
             <div key={d.id} className="flex items-center justify-between bg-orange-50 border border-orange-200 rounded-lg p-3">
               <div>
                 <p className="font-semibold text-gray-800 text-sm">{d.motivo}</p>
@@ -552,7 +560,7 @@ const ocultarDNI = (dni: string) => {
 
       <div className="border-t pt-3">
         <p className="text-right font-black text-orange-600">
-          Total descontado: {descuentosData.filter(d => d.equipo_id === equipoDescuentoPublico.equipo_id).reduce((sum, d) => sum + d.puntos_descontados, 0)} pts
+          Total descontado: {descuentosVisibles.reduce((sum, d) => sum + d.puntos_descontados, 0)} pts
         </p>
       </div>
     </div>

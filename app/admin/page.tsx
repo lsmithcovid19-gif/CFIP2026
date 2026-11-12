@@ -51,6 +51,7 @@ export default function AdminPage() {
   const [categoriaTabla, setCategoriaTabla] = useState('LIBRE')
   const [tablaR2, setTablaR2] = useState<PuntajeEquipo[]>([])
   const [vistaTabla, setVistaTabla] = useState<'r1' | 'r2' | 'acumulado'>('r2')
+  const [vistaTablaPublica, setVistaTablaPublica] = useState<'r1' | 'r2' | 'acumulado'>('acumulado')
   const [form, setForm] = useState({ nombre: '', colegio: '', categoria: 'LIBRE' })
   const [subiendoPDF, setSubiendoPDF] = useState(false)
   const [subiendoFixture, setSubiendoFixture] = useState(false)
@@ -428,6 +429,8 @@ const handleEliminarPuntajeR2 = async (id: string) => {
       alert('Completa todos los campos')
       return
     }
+    const rueda = vistaTabla === 'r2' ? 2 : 1
+    const tablaDestino = rueda === 2 ? 'tabla_puntajes_r2' : 'tabla_puntajes'
 
     await supabase.from('descuentos').insert({
       equipo_id: equipoDescuento.equipo_id,
@@ -435,23 +438,18 @@ const handleEliminarPuntajeR2 = async (id: string) => {
       motivo: formDescuento.motivo,
       fecha_partido: formDescuento.fecha_partido,
       puntos_descontados: formDescuento.puntos_descontados,
+      rueda,
     })
 
-    const { data: todosDescuentos } = await supabase
+    const { data: lista } = await supabase
       .from('descuentos')
-      .select('*')
+      .select('puntos_descontados')
       .eq('equipo_id', equipoDescuento.equipo_id)
+      .eq('rueda', rueda)
+    const total = (lista || []).reduce((s, d) => s + d.puntos_descontados, 0)
 
-    const totalDesc = (todosDescuentos || []).reduce((sum, d) => sum + d.puntos_descontados, 0)
-
-    // Actualizar en tabla R1
-    await supabase.from('tabla_puntajes')
-      .update({ pts_descontados: totalDesc })
-      .eq('equipo_id', equipoDescuento.equipo_id)
-
-    // Actualizar en tabla R2 también
-    await supabase.from('tabla_puntajes_r2')
-      .update({ pts_descontados: totalDesc })
+    await supabase.from(tablaDestino)
+      .update({ pts_descontados: total })
       .eq('equipo_id', equipoDescuento.equipo_id)
 
     setFormDescuento({ motivo: '', fecha_partido: '', puntos_descontados: 0 })
@@ -464,15 +462,18 @@ const handleEliminarPuntajeR2 = async (id: string) => {
     if (!confirm('¿Eliminar este descuento?')) return
     await supabase.from('descuentos').delete().eq('id', descuento.id)
 
-    const restantes = descuentos.filter(d => d.id !== descuento.id && d.equipo_id === descuento.equipo_id)
-    const totalDesc = restantes.reduce((sum, d) => sum + d.puntos_descontados, 0)
+    const rueda = descuento.rueda || 1
+    const tablaDestino = rueda === 2 ? 'tabla_puntajes_r2' : 'tabla_puntajes'
 
-    await supabase.from('tabla_puntajes')
-      .update({ pts_descontados: totalDesc })
+    const { data: lista } = await supabase
+      .from('descuentos')
+      .select('puntos_descontados')
       .eq('equipo_id', descuento.equipo_id)
+      .eq('rueda', rueda)
+    const total = (lista || []).reduce((s, d) => s + d.puntos_descontados, 0)
 
-    await supabase.from('tabla_puntajes_r2')
-      .update({ pts_descontados: totalDesc })
+    await supabase.from(tablaDestino)
+      .update({ pts_descontados: total })
       .eq('equipo_id', descuento.equipo_id)
 
     await cargarTabla()
@@ -526,6 +527,11 @@ const handleEliminarPuntajeR2 = async (id: string) => {
     { id: 'goleadores', label: '⚽ Goleadores', count: goleadores.length },
     { id: 'tarjetas', label: '🟨 Tarjetas', count: tarjetas.length },
   ]
+
+  const ruedaActual = vistaTabla === 'r2' ? 2 : 1
+  const descuentosEquipo = equipoDescuento
+    ? descuentos.filter(d => d.equipo_id === equipoDescuento.equipo_id && (d.rueda || 1) === ruedaActual)
+    : []
 
   return (
     <main className="min-h-screen bg-gray-100">
@@ -1434,10 +1440,10 @@ const handleEliminarPuntajeR2 = async (id: string) => {
 
       {/* Lista de descuentos */}
       <div className="space-y-2 mb-4">
-        {descuentos.filter(d => d.equipo_id === equipoDescuento.equipo_id).length === 0 ? (
+        {descuentosEquipo.length === 0 ? (
           <p className="text-gray-400 text-center py-4">No hay descuentos registrados</p>
         ) : (
-          descuentos.filter(d => d.equipo_id === equipoDescuento.equipo_id).map(d => (
+          descuentosEquipo.map(d => (
             <div key={d.id} className="flex items-center justify-between bg-orange-50 border border-orange-200 rounded-lg p-3">
               <div>
                 <p className="font-semibold text-gray-800 text-sm">{d.motivo}</p>
@@ -1455,7 +1461,7 @@ const handleEliminarPuntajeR2 = async (id: string) => {
 
       <div className="border-t pt-3 mb-4">
         <p className="text-right font-black text-orange-600">
-          Total descontado: {descuentos.filter(d => d.equipo_id === equipoDescuento.equipo_id).reduce((sum, d) => sum + d.puntos_descontados, 0)} pts
+          Total descontado: {descuentosEquipo.reduce((sum, d) => sum + d.puntos_descontados, 0)} pts
         </p>
       </div>
 
